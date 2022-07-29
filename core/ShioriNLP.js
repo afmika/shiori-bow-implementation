@@ -1,4 +1,5 @@
 const tf = require('@tensorflow/tfjs');
+const fs = require('fs');
 
 
 module.exports = class ShioriNLP {
@@ -7,13 +8,16 @@ module.exports = class ShioriNLP {
         this.intent_func = {};
         this.vocabulary = [];
         this.model = null;
+        this.model_loss = Infinity;
     }
 
     /**
      * @param {string} filename 
      */
     load (filename) {
-        const intents_array = require(filename);
+        const intents_array = JSON.parse(
+            fs.readFileSync(filename)
+        );
         const seen = new Set();
         for (let intent of intents_array) {
             // "tag": "shop",
@@ -128,14 +132,20 @@ module.exports = class ShioriNLP {
         // dense is a fully connected layer
         const n_input = this.vocabulary.length;
         const n_output = this.intents.length;
-        const hidden = tf.layers.dense({units: 100, activation: 'sigmoid', inputShape: [n_input]});
-        const output = tf.layers.dense({units: n_output, activation: 'sigmoid'});
-        model.add(hidden);
-        model.add(output);
+
+        // hidden
+        model.add(tf.layers.dense({
+            units: 100, activation: 'sigmoid', inputShape: [n_input]
+        }));
+
+        // output
+        model.add(tf.layers.dense({
+            units: n_output, activation: 'sigmoid'
+        }));
         
         // sgdOpt
         // we can also use adam but let's stick with the old gradient descent for now
-        const sgdOpt = tf.train.sgd(0.1); // learning rate
+        const sgdOpt = tf.train.sgd(0.2); // learning rate
         // model.compile({optimizer: sgdOpt, loss: 'meanSquaredError'});
         // works better for binary-ish values
         // as it tries to minimize the chaos between the expected value and the output
@@ -143,11 +153,11 @@ module.exports = class ShioriNLP {
         
         const input = tf.tensor2d(dataset.map(data => data.input_vector));
         const label = tf.tensor2d(dataset.map(data => data.label_vector));
-        tf.dispose(this.model);
         
         
         for (let i = 0; i < epochs; i++) {
             let res_history = await model.fit(input, label);
+            this.model_loss = res_history.history.loss[0];
             if (callback_fun)
                 callback_fun(res_history, i + 1);
         }
@@ -160,6 +170,10 @@ module.exports = class ShioriNLP {
         return this.model;
     }
 
+    /**
+     * @param {string} sentence 
+     * @returns 
+     */
     predict (sentence) {
         if (!this.model)
             throw Error('Please train a model first !');

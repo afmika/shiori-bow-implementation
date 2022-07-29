@@ -10,11 +10,11 @@ nlp.buildVocabularyFromDataset((token) => {
 });
 
 nlp
-    .train(500, (res, epoch) => {
-        console.log(res.history.loss[0])
+    .train(100, (res, epoch) => {
+        console.log(epoch, res.history.loss[0])
     })
-    .then(() => {
-        console.log(nlp.predict('Hello'));
+    .then(async (model) => {
+        console.log(nlp.predict('What is your name ?'));
     });
 
 // console.log(nlp.produceNumericDataset());

@@ -56,7 +56,6 @@ module.exports = class ShioriNLP {
         const set_words = new Set();
         for (let intent of this.intents) {
             const tokens = ShioriNLP.tokenize(intent.patterns.join(' '));
-                                
             for (let token of tokens) {
                 if (criteria_func) {
                     const accepted = criteria_func(token);
@@ -71,6 +70,10 @@ module.exports = class ShioriNLP {
         this.vocabulary = [...set_words];
     }
 
+    /**
+     * @param {string} input_sentence 
+     * @returns 
+     */
     produceInputVectorFrom (input_sentence) {
         const input_vector = []; // same size as the vocabulary array
         // input vector (according to the vocabulary)
@@ -127,43 +130,43 @@ module.exports = class ShioriNLP {
         // note
         // units : number of neurons
         // activation : activation function
-        // inputShape : shape of the input (reshape logic if we use an array with 3 values)
+        // inputShape : shape of the input (reshape() logic if we use an array with 3 values)
         
         // dense is a fully connected layer
         const n_input = this.vocabulary.length;
         const n_output = this.intents.length;
 
         // hidden
-        model.add(tf.layers.dense({
+        model.add (tf.layers.dense({
             units: 100, activation: 'sigmoid', inputShape: [n_input]
         }));
 
         // output
-        model.add(tf.layers.dense({
+        model.add (tf.layers.dense({
             units: n_output, activation: 'sigmoid'
         }));
         
         // sgdOpt
         // we can also use adam but let's stick with the old gradient descent for now
-        const sgdOpt = tf.train.sgd(0.2); // learning rate
+        const sgdOpt = tf.train.sgd (0.2); // learning rate
         // model.compile({optimizer: sgdOpt, loss: 'meanSquaredError'});
         // works better for binary-ish values
         // as it tries to minimize the chaos between the expected value and the output
-        model.compile({optimizer: sgdOpt, loss: 'binaryCrossentropy'});
+        model.compile ({optimizer: sgdOpt, loss: 'binaryCrossentropy'});
         
-        const input = tf.tensor2d(dataset.map(data => data.input_vector));
-        const label = tf.tensor2d(dataset.map(data => data.label_vector));
+        const input = tf.tensor2d (dataset.map(data => data.input_vector));
+        const label = tf.tensor2d (dataset.map(data => data.label_vector));
         
         
         for (let i = 0; i < epochs; i++) {
-            let res_history = await model.fit(input, label);
+            let res_history = await model.fit (input, label);
             this.model_loss = res_history.history.loss[0];
             if (callback_fun)
                 callback_fun(res_history, i + 1);
         }
 
-        input.dispose();
-        label.dispose();
+        input.dispose ();
+        label.dispose ();
 
         this.model = model;
 
@@ -178,12 +181,12 @@ module.exports = class ShioriNLP {
         if (!this.model)
             throw Error('Please train a model first !');
         const input_vector = this.produceInputVectorFrom (sentence);
-        const input_tensor = tf.tensor2d([input_vector]);
-        const prediction = this.model.predict(input_tensor);
-        const as_array = Array.from(prediction.dataSync());
+        const input_tensor = tf.tensor2d ([input_vector]);
+        const prediction = this.model.predict (input_tensor);
+        const as_array = Array.from (prediction.dataSync());
         const prediction_result = {};
         for (let {tag} of this.intents)
-            prediction_result[tag] = as_array.shift();
+            prediction_result[tag] = as_array.shift ();
         return prediction_result;
     }
 

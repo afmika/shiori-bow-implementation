@@ -7,6 +7,7 @@ module.exports = class ShioriNLP {
         this.intents = [];
         this.intent_func = {};
         this.vocabulary = [];
+        this.consider_word_order = false;
         this.model = null;
         this.model_loss = Infinity;
     }
@@ -78,9 +79,19 @@ module.exports = class ShioriNLP {
         const input_vector = []; // same size as the vocabulary array
         // input vector (according to the vocabulary)
         const tokens = ShioriNLP.tokenize (input_sentence);
+        let max = -Infinity;
         for (let word of this.vocabulary) {
-            input_vector.push(tokens.includes(word) ? 1 : 0);
+            let value = 0;
+            if (tokens.includes(word)) {
+                value = this.consider_word_order ? (1 + tokens.indexOf(word)) : 1;
+                max = Math.max(value, max);
+            }
+            input_vector.push(value);
         }
+
+        if (this.consider_word_order)
+            return input_vector.map(value => value / Math.max(0., max));
+
         return input_vector;
     }
 

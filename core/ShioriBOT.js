@@ -12,10 +12,12 @@ module.exports = class ShioriBOT {
 
     /**
      * @param {string} filename 
+     * @param {boolean?} consider_word_order 
      */
-    async setup (filename) {
-        const nlp = new ShioriNLP();
+    async setup (filename, consider_word_order = false) {
+        const nlp = this.nlp || new ShioriNLP();
         this.nlp = nlp;
+        this.nlp.consider_word_order = consider_word_order || false;
 
         nlp.load (filename);
         nlp.buildVocabularyFromDataset ();

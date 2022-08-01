@@ -211,6 +211,7 @@ module.exports = class ShioriNLP {
                 .toLowerCase()
                 .replace(/['\-]+/g, '')
                 .replace(/[ .?!]+/g, ' ')
-                .split(/[ ,;\t\n]+/g);
+                .split(/[ ,;\t\n]+/g)
+                .filter(str => str != '');
     }
 }

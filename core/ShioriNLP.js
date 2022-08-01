@@ -206,12 +206,16 @@ module.exports = class ShioriNLP {
      * @returns string[]
      */
     static tokenize (str) {
+        // return str
+        //         .trim()
+        //         .toLowerCase()
+        //         .replace(/['0-9 /[\\/:"*!?<>.{}|~\n\t\r]+/g, x => x == "'" ? '' : ' ')
+        //         .split(' ')
+        //         .filter(str => str != '');
         return str
                 .trim()
                 .toLowerCase()
-                .replace(/['\-]+/g, '')
-                .replace(/[ .?!]+/g, ' ')
-                .split(/[ ,;\t\n]+/g)
-                .filter(str => str != '');
+                .replace(/['0-9 \n\t\r]+/g, x => x == "'" ? '' : ' ')
+                .match(/[a-zéèàêëùüûâä]+/g) || [];
     }
 }

@@ -116,10 +116,13 @@ class ShioriWord2Vec {
     
     /**
      * @param {string[]} vocabulary 
+     * @param {number?} max_vec_dimension 
      */
-    constructor (text) {
+    constructor (text, max_vec_dimension = Infinity) {
         this.text = text || '';
+        this.max_vec_dimension = max_vec_dimension;
         this.is_trained_model = false;
+
     }
 
     /**
@@ -132,10 +135,13 @@ class ShioriWord2Vec {
     }
 
     /**
-     * @param {number} n_context number of 'context' word on the left/right of a given token
+     * @param {number?} n_context number of 'context' word on the left/right of a given token
+     * @param {string[]?} exclude list of words to exclude
      */
-    train (n_context = 1) {
-        const tokens = ShioriNLP.tokenize (this.text.toLowerCase());
+    train (n_context = 1, exclude = []) {
+        let tokens = ShioriNLP.tokenize (this.text.toLowerCase());
+        if (exclude.length > 0)
+            tokens = tokens.filter (x => !exclude.includes(x));
         
         const place_holder_expr = '__';
         const isValidIndex = x => x >= 0 && x < tokens.length;
@@ -156,6 +162,8 @@ class ShioriWord2Vec {
             occ_count[original] = occ_count[original] ? (occ_count[original] + 1) : 1;
 
             column_set.add (hash_key);
+            if (column_set.size >= this.max_vec_dimension)
+                break;
             cursor++;
         }
         // console.log(column_set.size, column_set);
@@ -173,14 +181,66 @@ class ShioriWord2Vec {
                 words[token].addComponent (component); 
             }
         }
-
-        return words;
+        this.is_trained_model = true;
+        this.words = words;
     }
 
-
-    word2vec (str) {
+    /**
+     * @param {string} word 
+     * @returns {WordVector}
+     */
+    word2vec (word) {
+        word = word.toLowerCase ();
         if (!this.is_trained_model)
-            throw Error ('Please train first');
+            throw Error ('Please train the model first !');
+        if (this.words[word] == undefined)
+            throw Error (word + ' is not a part of the dataset !');
+        return this.words[word];
+    }
+
+    /**
+     * @param {string} word 
+     * @param {number?} top 
+     * @returns [{word, dist, cosine_dist}] 
+     */
+    closestWord (word, top = 3) {
+        const vector = this.word2vec(word);
+        return this.closestWordByVector (vector, top, word.toLowerCase ());
+    }
+
+    
+    /**
+     * @param {WordVector} vector 
+     * @param {number?} top 
+     * @param {string?} trivial_word 
+     * @returns [{word, dist, cosine_dist}] ⌈
+     */
+    closestWordByVector (vector, top = 3, trivial_word = null) {
+        let top_list = [];
+        for (let item in this.words) {
+            if (trivial_word == item) continue;
+            const vec = this.words[item];
+            const dist = WordVector.sub (vec, vector).length();
+            const cosine_dist = WordVector.cosDist (vec, vector);
+            top_list.push({word : item, dist : dist, cosine_dist : cosine_dist, vec : vec});
+        }
+
+        top_list
+            .sort((a, b) => {
+                const dist_diff = a.dist - b.dist;
+                const cos_diff = a.cosine_dist - b.cosine_dist;
+                return  Math.abs(dist_diff) < EPSILON ? cos_diff : dist_diff;
+            });
+
+        return top_list.filter((_, i) => i < top);
+    }
+
+    /**
+     * @returns infos
+     */
+    infos () {
+        const vec_dim = this.words [ Object.keys(this.words) [0] ].dim();
+        return {total_words : Object.keys(this.words).length, vec_dim : vec_dim};
     }
 }
 

@@ -97,7 +97,7 @@ class WordVector {
         let div = (a.length() * b.length());
         // well.. technically if dot(a, b) is also 0 then it should be undefined but... yeah
         if (div == 0) 
-            return Infinity * ((a < 0 || b < 0) ? -1 : 1);
+            return 0;
         return a.dot(b) / div;
     }
 
@@ -230,7 +230,6 @@ class ShioriWord2Vec {
             const hash_key = current.join(' ');
             const original = reconstrOriginal (hash_key, tokens[cursor]); // He _ angry => He was angry
             occ_count[original] = occ_count[original] ? (occ_count[original] + 1) : 1;
-            // in this approach, the most shared column is irrelevant i.e. not representative of a word
             share_count[hash_key] = share_count[hash_key] ? (share_count[hash_key] + 1) : 1;
 
             column_set.add (hash_key);
@@ -242,10 +241,23 @@ class ShioriWord2Vec {
 
         // the main idea here is to reduce the column set
         const sorted_column_array = [...column_set];
-        // asc order
-        sorted_column_array.sort((a, b) => share_count[a] - share_count[b]);
-        // let last = sorted_column_array.length;
-        // console.log(share_count[sorted_column_array[last - 1]], share_count[sorted_column_array[last - 20]]);
+        // in this approach, we define the most shared column as more 'relevant'
+        // my initial approach was to use the less used ones as they are more likely to be a feature
+        // for a given word (carry more information so to speak)
+        // but it seems not working very well with vector arithmetic
+
+        // .. then I realized that the most 'shared' column here means columns that are more likely to give
+        // context to all words, it's the 'word' (token) that carries information not the surroundings !
+        // for a given word (information) we need to assign it with a 'context' i.e. we give it a meaning !
+        // Ex: his name was {x}, he was hit by a truck
+        // This sentence clearly depends on {x} i.e. x gives a meaning/purpose to its surrounding context
+        // by ordering them while prioritizing the most shared ones we can
+        //
+        // Ex: this kid is actually a {x}
+        // {x} = boy, girl, power-ranger
+        // => boy, girl and should should have cosine_distance ~ 1
+        // => the vector produced are not equal (different length) but oriented in the same way
+        sorted_column_array.sort((b, a) => share_count[a] - share_count[b]);
         
         // building the vector
         const words = {};
@@ -311,10 +323,14 @@ class ShioriWord2Vec {
         top_list
             .sort((a, b) => {
                 let dist_diff = a.dist - b.dist;
-                let cos_diff = a.cosine_dist - b.cosine_dist;
+                // we do not care about the orientation, we just care
+                // about the angle between the two vectors
+                // the bigger the cosine diff, the more similar the vectors are !
+                let cos_diff = Math.abs(b.cosine_dist) - Math.abs(a.cosine_dist);
                 if (isNaN (cos_diff)) // ex +Infinity-Infinity which is undefined
                     cos_diff = 0;
-                return  Math.abs(dist_diff) < EPSILON ? cos_diff : dist_diff;
+                // prioritize the cosine dist
+                return Math.abs(cos_diff) < EPSILON ? dist_diff : cos_diff;
             });
 
         return top_list.filter((_, i) => i < top);

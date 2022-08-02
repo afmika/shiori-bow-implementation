@@ -25,7 +25,7 @@ sw2v.loadTextFromFile (
     './datas/exclude.txt',
 );
 // sw2v.loadTextFromFile ('./datas/konosuba.en.txt');
-sw2v.max_vec_dimension = 1000;
+sw2v.max_vec_dimension = 2000;
 
 let current_mult = 0, state = null;
 sw2v.trainOptimally (1, (msg, n_current, total) => {
@@ -45,7 +45,7 @@ sw2v.trainOptimally (1, (msg, n_current, total) => {
 
 const result = WordVector.add (
     sw2v.word2vec ('Mother'),
-    sw2v.word2vec ('girl')
+    sw2v.word2vec ('father')
 );
 
 console.log('Data infos', sw2v.infos());

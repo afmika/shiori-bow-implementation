@@ -280,6 +280,36 @@ class ShioriWord2Vec {
         this.words = words;
     }
 
+    saveVectorsTo (filename) {
+        const text = JSON.stringify ({
+            metadata : {
+                generator : 'ShioriWord2Vec',
+                infos : this.infos()
+            },
+            words : this.words
+        });
+
+        fs.writeFileSync (filename, text);
+    }
+
+    loadVectorsFromFile (filename) {
+        const datas = fs.readFileSync (filename).toString();
+        const {words} = JSON.parse (datas);
+        if (!words)
+            throw Error ("Error data format, 'words' field expected");
+
+        for (let word in words) {
+            const current = words[word];
+            if (!current.components)
+                throw Error ("Error data format at word '" + word + "', 'components' field expected");
+            // wrap each json object inside a WordVector object
+            words[word] = new WordVector (current.components);
+        }
+
+        this.words = words;
+        this.is_trained_model = true;
+    }
+
     /**
      * @param {string} word 
      * @returns {WordVector}
@@ -317,7 +347,7 @@ class ShioriWord2Vec {
             const vec = this.words[item];
             const dist = WordVector.sub (vec, vector).length();
             const cosine_dist = WordVector.cosDist (vec, vector);
-            top_list.push({word : item, dist : dist, cosine_dist : cosine_dist, vec : vec});
+            top_list.push({word : item, cosine_dist : cosine_dist, dist : dist, vec : vec});
         }
 
         top_list
@@ -342,7 +372,7 @@ class ShioriWord2Vec {
     infos () {
         const vec_dim = this.words [ Object.keys(this.words) [0] ].dim();
         return {total_words : Object.keys(this.words).length, vec_dim : vec_dim};
-    }
+    }                                                                                                                                                                                                                                                                                                                        
 }
 
 

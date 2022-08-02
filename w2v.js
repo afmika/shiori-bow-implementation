@@ -1,26 +1,30 @@
 const {ShioriWord2Vec, WordVector} = require('./core/ShioriWord2Vec');
 const sw2v = new ShioriWord2Vec ();
-sw2v.loadTextFromFile (
-    './datas/gutenberg-books/jap-g.txt',
-    './datas/exclude.txt'
-);
-// sw2v.loadTextFromFile ('./datas/konosuba.en.txt');
-sw2v.max_vec_dimension = 3000;
-let current_mult = 0, state = null;
-sw2v.trainOptimally (1, (msg, n_current, total) => {
-    const p = Math.floor (100 * n_current / total);
-    const k = Math.floor (p / 20);
-    const r = p - k * 20;
-    const curr_state = msg.split(':')[0];
-    if (curr_state != state) {
-        state = curr_state;
-        current_mult = 0;
-    }
-    if (k > current_mult && r == 0) {
-        console.log ('Training : '+ p + '%', 'status ' + msg, n_current + '/' + total);
-        current_mult = k;
-    }
-});
+
+sw2v.loadVectorsFromFile ('./trained/shiori-w2v/shakespear-vectors.json');
+// sw2v.loadTextFromFile (
+//     './datas/gutenberg-books/t8.shakespeare.txt',
+//     './datas/exclude.txt'
+// );
+// sw2v.max_vec_dimension = 2500;
+// let current_mult = 0, state = null;
+// sw2v.trainOptimally (1, (msg, n_current, total) => {
+//     const p = Math.floor (100 * n_current / total);
+//     const chunk_size = 5;
+//     const k = Math.floor (p / chunk_size);
+//     const r = p - k * chunk_size;
+//     const curr_state = msg.split(':')[0];
+//     if (curr_state != state) {
+//         state = curr_state;
+//         current_mult = 0;
+//     }
+//     if (k > current_mult && r == 0) {
+//         console.log ('Training : '+ p + '%', 'status ' + msg, n_current + '/' + total);
+//         current_mult = k;
+//     }
+// });
+
+// sw2v.saveVectorsTo ('./shakespear-vectors.json')
 
 console.log('Infos :: ', sw2v.infos());
 

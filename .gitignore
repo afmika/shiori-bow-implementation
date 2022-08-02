@@ -1,3 +1,6 @@
+# datas
+trained/*
+
 # Logs
 logs
 *.log

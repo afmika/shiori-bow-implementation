@@ -7,7 +7,7 @@ sw2v.loadTextFromFile (
 // sw2v.loadTextFromFile ('./datas/konosuba.en.txt');
 sw2v.max_vec_dimension = 2000;
 let current_mult = 0, state = null;
-sw2v.trainOptimaly (1, (msg, n_current, total) => {
+sw2v.trainOptimally (1, (msg, n_current, total) => {
     const p = Math.floor (100 * n_current / total);
     const k = Math.floor (p / 20);
     const r = p - k * 20;

@@ -209,7 +209,7 @@ class ShioriWord2Vec {
      * @param {number?} n_context number of 'context' word on the left/right of a given token
      * @param {Function?} log_fun Function (message, n_current, total)
      */
-     trainOptimaly (n_context = 1, log_fun = null) {
+     trainOptimally (n_context = 1, log_fun = null) {
         let tokens = this.tokens;
 
         const place_holder_expr = '__';

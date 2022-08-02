@@ -1,6 +1,6 @@
-const { assert } = require('console');
 const fs = require ('fs');
 const ShioriNLP = require('./ShioriNLP');
+const Utils = require('./Utils');
 const EPSILON = 10e-6;
 
 class WordVector {
@@ -104,7 +104,7 @@ class WordVector {
      */
     static dimCheck (a, b) {
         if (a.dim() != b.dim())
-            throw Error ('Operands does not share the same dimensionality');
+            throw Error ('Operands do not share the same dimensionality');
     }
 
     toString () {
@@ -115,34 +115,42 @@ class WordVector {
 class ShioriWord2Vec {
     
     /**
-     * @param {string[]} vocabulary 
      * @param {number?} max_vec_dimension 
      */
-    constructor (text, max_vec_dimension = Infinity) {
-        this.text = text || '';
+    constructor (max_vec_dimension = Infinity) {
         this.max_vec_dimension = max_vec_dimension;
         this.is_trained_model = false;
-
+        this.tokens = [];
+        this.excluded_tokens = [];
     }
 
     /**
-     * @param {string} filename
+     * @param {string} filename 
+     * @param {string} exclude_list_filename 
      */
-    loadTextFromFile (filename) {
-        this.text = fs
+    loadTextFromFile (filename, exclude_list_filename = null) {
+        const text_content = fs
                     .readFileSync (filename)
                     .toString();
+        
+        this.tokens = ShioriNLP.tokenize (text_content.toLowerCase());
+
+        if (exclude_list_filename) {
+            const excluded_content = fs
+                        .readFileSync (exclude_list_filename)
+                        .toString();
+            this.excluded_tokens = ShioriNLP.tokenize (excluded_content.toLowerCase());
+            this.tokens = this.tokens.filter(it => !this.excluded_tokens.includes(it))
+        }
     }
 
     /**
      * @param {number?} n_context number of 'context' word on the left/right of a given token
-     * @param {string[]?} exclude list of words to exclude
+     * @param {Function?} log_fun Function (message, n_current, total)
      */
-    train (n_context = 1, exclude = []) {
-        let tokens = ShioriNLP.tokenize (this.text.toLowerCase());
-        if (exclude.length > 0)
-            tokens = tokens.filter (x => !exclude.includes(x));
-        
+    train (n_context = 1, log_fun = null) {
+        let tokens = this.tokens;
+
         const place_holder_expr = '__';
         const isValidIndex = x => x >= 0 && x < tokens.length;
         const reconstrOriginal = (hash, token) => hash.replace(place_holder_expr, token);
@@ -164,6 +172,8 @@ class ShioriWord2Vec {
             column_set.add (hash_key);
             if (column_set.size >= this.max_vec_dimension)
                 break;
+            // console.log(Utils.safeRun(console.log) ('sd'))
+            Utils.safeRun (log_fun) ('1:construct_column', cursor + 1, tokens.length);
             cursor++;
         }
         // console.log(column_set.size, column_set);
@@ -171,7 +181,9 @@ class ShioriWord2Vec {
         
         // building the vector
         const words = {};
+        let pos = 1;
         for (let token of tokens) {
+            Utils.safeRun (log_fun) ('2:construct_word_vector', pos++, tokens.length);
             if (words[token]) // seen
                 continue;
             words[token] = new WordVector(); // init the vector
@@ -181,6 +193,7 @@ class ShioriWord2Vec {
                 words[token].addComponent (component); 
             }
         }
+
         this.is_trained_model = true;
         this.words = words;
     }

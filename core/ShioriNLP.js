@@ -90,7 +90,7 @@ module.exports = class ShioriNLP {
         }
 
         if (this.consider_word_order)
-            return input_vector.map(value => value / Math.max(0., max));
+            return input_vector.map(value => value / Math.max(0.000001, max));
 
         return input_vector;
     }

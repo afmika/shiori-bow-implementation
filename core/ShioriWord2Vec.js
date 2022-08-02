@@ -94,7 +94,11 @@ class WordVector {
      * @returns 
      */
     static cosDist (a, b) {
-        return a.dot(b) / (a.length() * b.length());
+        let div = (a.length() * b.length());
+        // well.. technically if dot(a, b) is also 0 then it should be undefined but... yeah
+        if (div == 0) 
+            return Infinity * ((a < 0 || b < 0) ? -1 : 1);
+        return a.dot(b) / div;
     }
 
     /**
@@ -173,8 +177,8 @@ class ShioriWord2Vec {
             if (column_set.size >= this.max_vec_dimension)
                 break;
             // console.log(Utils.safeRun(console.log) ('sd'))
-            Utils.safeRun (log_fun) ('1:construct_column', cursor + 1, tokens.length);
             cursor++;
+            Utils.safeRun (log_fun) ('1:construct_column', cursor, tokens.length);
         }
         // console.log(column_set.size, column_set);
         // console.log(occ_count)
@@ -226,7 +230,7 @@ class ShioriWord2Vec {
      * @param {WordVector} vector 
      * @param {number?} top 
      * @param {string?} trivial_word 
-     * @returns [{word, dist, cosine_dist}] ⌈
+     * @returns [{word, dist, cosine_dist}]
      */
     closestWordByVector (vector, top = 3, trivial_word = null) {
         let top_list = [];
@@ -240,8 +244,10 @@ class ShioriWord2Vec {
 
         top_list
             .sort((a, b) => {
-                const dist_diff = a.dist - b.dist;
-                const cos_diff = a.cosine_dist - b.cosine_dist;
+                let dist_diff = a.dist - b.dist;
+                let cos_diff = a.cosine_dist - b.cosine_dist;
+                if (isNaN (cos_diff)) // ex +Infinity-Infinity which is undefined
+                    cos_diff = 0;
                 return  Math.abs(dist_diff) < EPSILON ? cos_diff : dist_diff;
             });
 

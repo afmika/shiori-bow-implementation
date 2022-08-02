@@ -5,9 +5,9 @@ sw2v.loadTextFromFile (
     './datas/exclude.txt'
 );
 // sw2v.loadTextFromFile ('./datas/konosuba.en.txt');
-// sw2v.max_vec_dimension = 5000;
+sw2v.max_vec_dimension = 2000;
 let current_mult = 0, state = null;
-sw2v.train (1, (msg, n_current, total) => {
+sw2v.trainOptimaly (1, (msg, n_current, total) => {
     const p = Math.floor (100 * n_current / total);
     const k = Math.floor (p / 20);
     const r = p - k * 20;
@@ -32,9 +32,7 @@ console.log('Total words', sw2v.infos());
 const top = sw2v.closestWordByVector (result, 10);
 console.log(top.map(v => v.word)); // should be the 'girl' ;)
 
-let res = WordVector.add (
-     sw2v.word2vec ('expression'),
-     sw2v.word2vec ('father')
-);
-
-sw2v.closestWordByVector (res, 5);
+sw2v.closestWordByVector (WordVector.add (
+    sw2v.word2vec ('girl'),
+    sw2v.word2vec ('expression'),
+), 5);

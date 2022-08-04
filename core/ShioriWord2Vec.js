@@ -151,7 +151,10 @@ class ShioriWord2Vec {
         this.max_vec_dimension = max_vec_dimension;
         this.is_trained_model = false;
         this.tokens = [];
-        this.excluded_tokens = [];
+        this.vocabulary_obj = {
+            word_to_idx : {},
+            idx_to_word : {}
+        };
     }
 
     /**
@@ -170,8 +173,63 @@ class ShioriWord2Vec {
                         .readFileSync (exclude_list_filename)
                         .toString();
             this.excluded_tokens = ShioriNLP.tokenize (excluded_content.toLowerCase());
-            this.tokens = this.tokens.filter(it => !this.excluded_tokens.includes(it))
+            this.tokens = this.tokens.filter (it => !this.excluded_tokens.includes(it));
         }
+        
+        // reset
+        this.vocabulary_obj = {
+            word_to_idx : {},
+            idx_to_word : {}
+        };
+
+        let index = 0;
+        for (let i = 0; i < this.tokens.length; i++) {
+            const token = this.tokens[i];
+            if (this.vocabulary_obj.word_to_idx[token] == undefined) {
+                this.vocabulary_obj.word_to_idx[token] = index;
+                this.vocabulary_obj.idx_to_word[index] = token;
+                index++;
+            }
+        }
+    }
+
+    /**
+     * @param {string} input_word 
+     * @returns {number[]} hot encoded vector
+     */
+    hotEncode (input_word) {
+        const hot_vec = [];
+        for (let word in this.vocabulary_obj.word_to_idx) {
+            let index = this.vocabulary_obj.word_to_idx[word];
+            hot_vec[index] = input_word == word ? 1 : 0;
+        }
+        return hot_vec;
+    }
+
+    /**
+     * @param {number} n_context 
+     * @returns 
+     */
+    generateTrainingDatas (n_context = 1) {
+        let tokens = this.tokens;
+        const isValidIndex = x => x >= 0 && x < tokens.length;
+
+        const datas = [];
+        for (let cursor = 0; cursor < tokens.length; cursor++) {
+            const center_word = this.hotEncode(tokens[cursor]);
+            const context_words = [];
+            for (let j = -n_context; j <= n_context; j++) {
+                let index = cursor + j;
+                if (isValidIndex(index) && index != cursor)
+                    context_words.push(this.hotEncode(tokens[index]));
+            }
+            datas.push ({
+                center : center_word,
+                context_list : context_words
+            });
+        }
+
+        return datas;
     }
 
     /**
@@ -180,57 +238,11 @@ class ShioriWord2Vec {
      * @param {number?} n_context number of 'context' word on the left/right of a given token
      * @param {Function?} log_fun Function (message, n_current, total)
      */
-     trainOptimally (n_context = 1, log_fun = null) {
-        let tokens = this.tokens;
+    trainOptimally (n_context = 1, log_fun = null) {
 
         const place_holder_expr = '__';
         const isValidIndex = x => x >= 0 && x < tokens.length;
         const reconstrOriginal = (hash, token) => hash.replace(place_holder_expr, token);
-
-        let cursor = 0;
-        const column_set = new Set();
-        const occ_count = {};
-        const share_count = {};
-        while (cursor < tokens.length) {
-            let current = [];
-            for (let i = (cursor - n_context); i <  (cursor + n_context + 1); i++) {
-                if (!isValidIndex(i)) 
-                    continue;
-                current.push(i == cursor ? place_holder_expr : tokens[i]);
-            }
-            const hash_key = current.join(' ');
-            const original = reconstrOriginal (hash_key, tokens[cursor]); // He _ angry => He was angry
-            occ_count[original] = occ_count[original] ? (occ_count[original] + 1) : 1;
-            share_count[hash_key] = share_count[hash_key] ? (share_count[hash_key] + 1) : 1;
-
-            column_set.add (hash_key);
-            cursor++;
-            Utils.safeRun (log_fun) ('1:construct_column', cursor, tokens.length);
-        }
-        // console.log(column_set.size, column_set);
-        // console.log(occ_count)
-
-        // the main idea here is to reduce the column set
-        const sorted_column_array = [...column_set];
-        // in this approach, we define the most shared column as less 'relevant'
-        sorted_column_array.sort((b, a) => share_count[a] - share_count[b]);
-        
-        // building the vector
-        const words = {};
-        let pos = 1;
-        for (let token of tokens) {
-            Utils.safeRun (log_fun) ('2:construct_word_vector', pos++, tokens.length);
-            if (words[token]) // seen
-                continue;
-            words[token] = new WordVector (); // init the vector
-            const max_length = Math.min (this.max_vec_dimension, sorted_column_array.length);
-            for (let i = 0; i < max_length; i++) { // each column == a single component in this approach
-                const col = sorted_column_array [i];
-                const original = reconstrOriginal (col, token);
-                const component = occ_count[original] || 0;
-                words[token].addComponent (component); 
-            }
-        }
 
         this.is_trained_model = true;
         this.words = words;

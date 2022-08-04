@@ -13,6 +13,7 @@ module.exports = class Mat {
     }
 
     /**
+     * Produce a row vector
      * @param  {...number} entries 
      */
     static covec (...entries) {
@@ -20,9 +21,10 @@ module.exports = class Mat {
     }
 
     /**
+     * Produce a column vector
      * @param  {...number} entries 
      */
-     static vec (...entries) {
+    static vec (...entries) {
         return (new Mat([entries])).transpose();
     }
 
@@ -47,6 +49,14 @@ module.exports = class Mat {
         const a = this.dim();
         const b = other.dim();
         return a.n_col == b.n_col && a.n_row == b.n_row;
+    }
+
+    /**
+     * @returns {boolean}
+     */
+    isSquare () {
+        const {n_row, n_col} = this.dim();
+        return n_row == n_col;
     }
 
     /**

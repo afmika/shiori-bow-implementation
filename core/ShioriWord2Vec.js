@@ -2,6 +2,7 @@ const fs = require ('fs');
 const ShioriNLP = require('./ShioriNLP');
 const Utils = require('./Utils');
 const EPSILON = 10e-6;
+const tf = require('@tensorflow/tfjs');
 
 class WordVector {
     /**
@@ -153,8 +154,11 @@ class ShioriWord2Vec {
         this.tokens = [];
         this.vocabulary_obj = {
             word_to_idx : {},
-            idx_to_word : {}
+            idx_to_word : {},
+            count : 0
         };
+        this.model = null;
+        this.model_loss = Infinity;
     }
 
     /**
@@ -179,7 +183,8 @@ class ShioriWord2Vec {
         // reset
         this.vocabulary_obj = {
             word_to_idx : {},
-            idx_to_word : {}
+            idx_to_word : {},
+            count : 0
         };
 
         let index = 0;
@@ -188,7 +193,9 @@ class ShioriWord2Vec {
             if (this.vocabulary_obj.word_to_idx[token] == undefined) {
                 this.vocabulary_obj.word_to_idx[token] = index;
                 this.vocabulary_obj.idx_to_word[index] = token;
+                this.vocabulary_obj.count++;
                 index++;
+
             }
         }
     }
@@ -224,6 +231,7 @@ class ShioriWord2Vec {
                     context_words.push(this.hotEncode(tokens[index]));
             }
             datas.push ({
+                token : tokens[cursor],
                 center : center_word,
                 context_list : context_words
             });
@@ -238,11 +246,54 @@ class ShioriWord2Vec {
      * @param {number?} n_context number of 'context' word on the left/right of a given token
      * @param {Function?} log_fun Function (message, n_current, total)
      */
-    trainOptimally (n_context = 1, log_fun = null) {
+    async trainOptimally (n_context = 1, epochs = 50, log_fun = null) {
+        const model = tf.sequential();
+        this.model = model;
 
-        const place_holder_expr = '__';
-        const isValidIndex = x => x >= 0 && x < tokens.length;
-        const reconstrOriginal = (hash, token) => hash.replace(place_holder_expr, token);
+        const n_input = this.vocabulary_obj.count;
+        const n_output = this.vocabulary_obj.count;
+
+        // setup network
+        model.add(tf.layers.dense({units: 10, activation: 'softmax', inputShape: [n_input]}));
+        model.add(tf.layers.dense({units: n_output, activation: 'softmax'}));
+        model.compile({optimizer: 'sgd', loss: 'meanSquaredError'});
+
+        const dataset = this.generateTrainingDatas();
+        // ex : w1 x w2 w3
+        // input  := x  x  x (we repeat x as many times as there are context words)
+        // output := w1 w2 w3
+        let w_input = [], w_target = [];
+        for (const {center, context_list} of dataset) {
+            for (let context_vec of context_list) {
+                w_input.push(center);
+                w_target.push(context_vec);
+            }
+        }
+        // in the skip gram model, our y-hat is the context
+        const input = tf.tensor2d(w_input);
+        const label = tf.tensor2d(w_target);
+
+        for (let i = 0; i < epochs; i++) {
+            let res_history = await model.fit (input, label);
+            this.model_loss = res_history.history.loss[0];
+            Utils.safeRun(log_fun) (this.model_loss, i + 1, epochs);
+        }
+        // console.log(model.getWeights())
+
+        input.dispose ();
+        label.dispose ();
+
+        const words = {};
+        for (let {token} of dataset) {
+            const vec = this.hotEncode (token);
+            const tensor_input = tf.tensor2d([vec]);
+            const tensor_output = this.model.predict(tensor_input);
+            const arr = Object.values(tensor_output.dataSync());
+            words[token] = new WordVector(arr);
+
+            tensor_input.dispose();
+            tensor_output.dispose();
+        }
 
         this.is_trained_model = true;
         this.words = words;
@@ -260,6 +311,9 @@ class ShioriWord2Vec {
         fs.writeFileSync (filename, text);
     }
 
+    /**
+     * @param {string} filename 
+     */
     loadVectorsFromFile (filename) {
         const datas = fs.readFileSync (filename).toString();
         const {words} = JSON.parse (datas);

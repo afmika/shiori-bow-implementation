@@ -175,61 +175,6 @@ class ShioriWord2Vec {
     }
 
     /**
-     * * The number of columns will be equal to min(computed_col_length, max_vec_dimension)
-     * @param {number?} n_context number of 'context' word on the left/right of a given token
-     * @param {Function?} log_fun Function (message, n_current, total)
-     */
-    train (n_context = 1, log_fun = null) {
-        let tokens = this.tokens;
-
-        const place_holder_expr = '__';
-        const isValidIndex = x => x >= 0 && x < tokens.length;
-        const reconstrOriginal = (hash, token) => hash.replace(place_holder_expr, token);
-
-        let cursor = 0;
-        const column_set = new Set();
-        const occ_count = {};
-        while (cursor < tokens.length) {
-            let current = [];
-            for (let i = (cursor - n_context); i <  (cursor + n_context + 1); i++) {
-                if (!isValidIndex(i)) 
-                    continue;
-                current.push(i == cursor ? place_holder_expr : tokens[i]);
-            }
-            const hash_key = current.join(' ');
-            const original = reconstrOriginal (hash_key, tokens[cursor]); // He _ angry => He was angry
-            occ_count[original] = occ_count[original] ? (occ_count[original] + 1) : 1;
-
-            column_set.add (hash_key);
-            if (column_set.size >= this.max_vec_dimension)
-                break; // force 
-            cursor++;
-            Utils.safeRun (log_fun) ('1:construct_column', cursor, tokens.length);
-        }
-        // console.log(column_set.size, column_set);
-        // console.log(occ_count)
-        
-        // building the vector
-        const words = {};
-        let pos = 1;
-        for (let token of tokens) {
-            Utils.safeRun (log_fun) ('2:construct_word_vector', pos++, tokens.length);
-            if (words[token]) // seen
-                continue;
-            words[token] = new WordVector(); // init the vector
-            for (let col of column_set) { // each column == a single component in this approach
-                const original = reconstrOriginal (col, token);
-                const component = occ_count[original] || 0;
-                words[token].addComponent (component); 
-            }
-        }
-
-        this.is_trained_model = true;
-        this.words = words;
-    }
-
-
-    /**
      * * Tries its best to reduce the number of vector columns while retaining the relevant ones
      * * The number of columns will be equal to min(computed_col_length, max_vec_dimension)
      * @param {number?} n_context number of 'context' word on the left/right of a given token

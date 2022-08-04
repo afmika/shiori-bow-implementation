@@ -4,6 +4,9 @@ const Utils = require('./Utils');
 const EPSILON = 10e-6;
 
 class WordVector {
+    /**
+     * @param {number[]} components 
+     */
     constructor (components) {
         this.components = components || [];
     }
@@ -27,10 +30,9 @@ class WordVector {
      */
     equals (wordvec) {
         WordVector.dimCheck (this, wordvec);
-        for (let i = 0; i < this.components.length; i++) {
+        for (let i = 0; i < this.components.length; i++)
             if (Math.abs (wordvec.components[i] - this.components[i]) > EPSILON)
                 return false;
-        }
         return true;
     }
 
@@ -83,6 +85,30 @@ class WordVector {
         const result = new WordVector ();
         for (let i = 0; i < a.components.length; i++)
             result.addComponent (a.components[i] - b.components[i]);
+        return result;
+    }
+
+    /**
+     * @param {WordVector} vec 
+     * @param {number} factor 
+     */
+    static scale (vec, factor) {
+        const result = new WordVector ();
+        for (let i = 0; i < vec.components.length; i++)
+            result.addComponent (vec.components[i] * factor);
+        return result;
+    }
+
+    /**
+     * @param {WordVector} a 
+     * @param {WordVector} b 
+     * @returns 
+     */
+    static mean (a, b) {
+        WordVector.dimCheck (a, b);
+        const result = new WordVector ();
+        for (let i = 0; i < a.components.length; i++)
+            result.addComponent ((a.components[i] + b.components[i]) / 2);
         return result;
     }
 
@@ -241,22 +267,7 @@ class ShioriWord2Vec {
 
         // the main idea here is to reduce the column set
         const sorted_column_array = [...column_set];
-        // in this approach, we define the most shared column as more 'relevant'
-        // my initial approach was to use the less used ones as they are more likely to be a feature
-        // for a given word (carry more information so to speak)
-        // but it seems not working very well with vector arithmetic
-
-        // .. then I realized that the most 'shared' column here means columns that are more likely to give
-        // context to all words, it's the 'word' (token) that carries information not the surroundings !
-        // for a given word (information) we need to assign it with a 'context' i.e. we give it a meaning !
-        // Ex: his name was {x}, he was hit by a truck
-        // This sentence clearly depends on {x} i.e. x gives a meaning/purpose to its surrounding context
-        // by ordering them while prioritizing the most shared ones we can
-        //
-        // Ex: this kid is actually a {x}
-        // {x} = boy, girl, power-ranger
-        // => boy, girl and should should have cosine_distance ~ 1
-        // => the vector produced are not equal (different length) but oriented in the same way
+        // in this approach, we define the most shared column as less 'relevant'
         sorted_column_array.sort((b, a) => share_count[a] - share_count[b]);
         
         // building the vector
@@ -333,6 +344,18 @@ class ShioriWord2Vec {
         return this.closestWordByVector (vector, top, word.toLowerCase ());
     }
 
+    /**
+     * @param {string} word_a 
+     * @param {string} word_b 
+     * @param {number} top 
+     */
+    meanWord (word_a, word_b, top = 3) {
+        const vector_a = this.word2vec (word_a);
+        const vector_b = this.word2vec (word_b);
+        const mean = WordVector.mean (vector_a, vector_b);
+        return this.closestWordByVector (mean, top);
+    }
+
     
     /**
      * @param {WordVector} vector 
@@ -352,10 +375,12 @@ class ShioriWord2Vec {
 
         top_list
             .sort((a, b) => {
+                // a < b
                 let dist_diff = a.dist - b.dist;
                 // we do not care about the orientation, we just care
                 // about the angle between the two vectors
                 // the bigger the cosine diff, the more similar the vectors are !
+                // b > a
                 let cos_diff = Math.abs(b.cosine_dist) - Math.abs(a.cosine_dist);
                 if (isNaN (cos_diff)) // ex +Infinity-Infinity which is undefined
                     cos_diff = 0;
@@ -371,7 +396,10 @@ class ShioriWord2Vec {
      */
     infos () {
         const vec_dim = this.words [ Object.keys(this.words) [0] ].dim();
-        return {total_words : Object.keys(this.words).length, vec_dim : vec_dim};
+        return {
+            total_words : Object.keys(this.words).length,
+            vec_dim : vec_dim
+        };
     }                                                                                                                                                                                                                                                                                                                        
 }
 

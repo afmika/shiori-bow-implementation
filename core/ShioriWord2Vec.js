@@ -356,7 +356,7 @@ class ShioriWord2Vec {
                 // we do not care about the orientation, we just care
                 // about the angle between the two vectors
                 // the bigger the cosine diff, the more similar the vectors are !
-                let cos_diff = Math.abs(b.cosine_dist) - Math.abs(a.cosine_dist);
+                let cos_diff = b.cosine_dist - a.cosine_dist;
                 if (isNaN (cos_diff)) // ex +Infinity-Infinity which is undefined
                     cos_diff = 0;
                 // prioritize the cosine dist

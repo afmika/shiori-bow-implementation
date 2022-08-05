@@ -29,6 +29,23 @@ module.exports = class Mat {
     }
 
     /**
+     * @param {*} n_row 
+     * @param {*} n_col 
+     * @param {*} fn 
+     */
+    static rand (n_row, n_col, fn) {
+        let result = new Array(n_row);
+        for (let i = 0; i < n_row; i++) {
+            result[i] = new Array(n_col);
+            for (let j = 0; j < n_col; j++) {
+                const rn = Math.random ();
+                result[i][j] = fn ? fn(rn, i, j) : rn;
+            }
+        }
+        return new Mat(result);
+    }
+
+    /**
      * @param {number} n 
      */
     static Identity (n = 2) {
@@ -69,7 +86,7 @@ module.exports = class Mat {
     }
 
     /**
-     * @param {Function} fun Function(i, j, value) 
+     * @param {Function} fun Function(value, i, j) 
      * @returns {Mat}
      */
     map (fun) {
@@ -78,9 +95,20 @@ module.exports = class Mat {
         for (let i = 0; i < n_row; i++) {
             result[i] = new Array(n_col);
             for (let j = 0; j < n_col; j++)
-                result[i][j] = fun(this.get(j, i), i, j);
+                result[i][j] = fun(this.get(i, j), i, j);
         }
-        return result;
+        return new Mat(result);
+    }
+
+    /**
+     * @param {Function} fun Function(value, i, j)
+     */
+    each (fun) {
+        const {n_row, n_col} = this.dim();
+        for (let i = 0; i < n_row; i++) {
+            for (let j = 0; j < n_col; j++)
+                fun(this.get(i, j), i, j);
+        }
     }
 
     /**
@@ -106,7 +134,7 @@ module.exports = class Mat {
             for (let j = 0; j < n_col; j++)
                 result[i][j] = this.get(j, i);
         }
-        return new Mat(...result);
+        return new Mat(result);
     }
 
     /**

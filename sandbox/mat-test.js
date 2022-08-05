@@ -25,3 +25,5 @@ console.log(Mat.covec(1, 1, 1));
 console.log(Mat.vec(1, 1, 1));
 console.log('trivial prod', Mat.vec(1, 2, 3).prod(Mat.covec(-1, 0, 1)));
 console.log('trivial dot', Mat.covec(-2, 0, 1).prod(Mat.vec(1, 1, 1)));
+// random matrix Mij = rand(-1, 1)
+console.log('trivial dot', Mat.rand(3, 2, x => 2 * x - 1));

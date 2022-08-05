@@ -283,6 +283,8 @@ class ShioriWord2Vec {
         input.dispose ();
         label.dispose ();
 
+        console.log(this.model.layers[0].getWeights()[1].dataSync())
+
         const words = {};
         for (let {token} of dataset) {
             const vec = this.hotEncode (token);

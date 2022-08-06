@@ -273,14 +273,18 @@ module.exports = class Mat {
         return new Mat(result);
     }
 
+    /**
+     * shorthand for a more verbose console.log
+     */
     print () {
         const {n_row, n_col} = this.dim();
-        console.log(`Mat ${n_row}x${n_col}\n`
+        let str = `Mat ${n_row}x${n_col}\n`
             + '[ '
             + this.entries
                     .map((row, i) => (i > 0 ? '  ' : '') + row.join(' '))
                     .join('\n')
-            + ' ]'
-        );
+            + ' ]';
+        console.log(str);
+        return str;
     }
 }

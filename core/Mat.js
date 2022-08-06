@@ -3,9 +3,15 @@ module.exports = class Mat {
      * @param  {...number[]} entries 
      */
     constructor (...entries) {
+        if (entries.length == 0) 
+            return;
         if (entries.length == 1) {
             // single arg ==> an array[][]
             this.entries = entries[0];
+            return;
+        }
+        if (typeof entries[0] == 'number') {
+            this.entries = [entries];
             return;
         }
         // list of rows!
@@ -117,7 +123,7 @@ module.exports = class Mat {
     dim () {
         return {
             n_row : this.entries.length,
-            n_col : this.entries[0].length,
+            n_col : this.entries[0].length
         };
     }
 
@@ -153,6 +159,30 @@ module.exports = class Mat {
                 for (let k = 0; k < n_col; k++) 
                     s_dot += this.get(i, k) * b.get(k, j);
                 result[i][j] = s_dot;
+            }
+        }
+        return new Mat(result);
+    }
+
+    /**
+     * @param {Mat} b 
+     * @returns {Mat}
+     */
+    tensorProd (b) {
+        const a_dim = this.dim();
+        const b_dim = b.dim();
+        // (N x M) (x) (N' x M')
+        const result = new Array ();
+        for (let i = 0; i < (a_dim.n_row * b_dim.n_row); i++)
+            result.push(new Array(a_dim.n_col * b_dim.n_col).fill(0));
+        
+        for (let i = 0; i < a_dim.n_row; i++) {
+            for (let j = 0; j < a_dim.n_col; j++) {
+                const aij = this.get(i, j);
+                const by = i * b_dim.n_row, bx = j * b_dim.n_col; 
+                b.each ((bkl, r, c) => {
+                    result[by + r][bx + c] = aij * bkl;
+                });
             }
         }
         return new Mat(result);
@@ -205,5 +235,16 @@ module.exports = class Mat {
                 result[i][j] = this.get(i, j) * k;
         }
         return new Mat(result);
+    }
+
+    print () {
+        const {n_row, n_col} = this.dim();
+        console.log(`Mat ${n_row}x${n_col}\n`
+            + '[ '
+            + this.entries
+                    .map((row, i) => (i > 0 ? '  ' : '') + row.join(' '))
+                    .join('\n')
+            + ' ]'
+        );
     }
 }

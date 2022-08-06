@@ -40,6 +40,7 @@ aa.tensorProd(bb).print();
 bb.tensorProd(aa).print();
 
 console.log('\n# outer product');
-const u = new Mat([1, 0],[0, 1]);
-const v = new Mat([1, 0],[0, 2]);
+const u = new Mat([1,2], [3, 4]);
+const v = new Mat([1,2,3], [4,0,3]);
+
 u.outerProd(v).print();

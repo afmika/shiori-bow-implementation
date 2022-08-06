@@ -95,9 +95,9 @@ module.exports = class Mat {
      * @param {number} index 
      */
     getSingleIndexed (index) {
-        const {n_row, n_col} = this.dim();
-        const i = Math.floor (index / n_row);
+        const {n_col} = this.dim();
         const j = index % n_col;
+        const i = Math.floor(index / n_col);
         return this.get (i, j);
     }
 
@@ -213,7 +213,7 @@ module.exports = class Mat {
         const b_dim = b.dim();
         // (N x M) (x) (N' x M')
         let total_row = a_dim.n_row * a_dim.n_col;
-        let total_col = b_dim.n_col * b_dim.n_col;
+        let total_col = b_dim.n_row * b_dim.n_col;
         const result = new Array(total_row);
         for (let i = 0; i < total_row; i++) {
             result[i] = new Array(total_col);

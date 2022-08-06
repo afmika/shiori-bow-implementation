@@ -92,6 +92,16 @@ module.exports = class Mat {
     }
 
     /**
+     * @param {number} index 
+     */
+    getSingleIndexed (index) {
+        const {n_row, n_col} = this.dim();
+        const i = Math.floor (index / n_row);
+        const j = index % n_col;
+        return this.get (i, j);
+    }
+
+    /**
      * @param {Function} fun Function(value, i, j) 
      * @returns {Mat}
      */
@@ -172,9 +182,11 @@ module.exports = class Mat {
         const a_dim = this.dim();
         const b_dim = b.dim();
         // (N x M) (x) (N' x M')
+        let total_row = a_dim.n_row * b_dim.n_row;
+        let total_col = a_dim.n_col * b_dim.n_col;
         const result = new Array ();
-        for (let i = 0; i < (a_dim.n_row * b_dim.n_row); i++)
-            result.push(new Array(a_dim.n_col * b_dim.n_col).fill(0));
+        for (let i = 0; i < total_row; i++)
+            result[i] = new Array(total_col);
         
         for (let i = 0; i < a_dim.n_row; i++) {
             for (let j = 0; j < a_dim.n_col; j++) {
@@ -185,6 +197,30 @@ module.exports = class Mat {
                 });
             }
         }
+
+        return new Mat(result);
+    }
+    /**
+     * * a := flatten current matrix
+     * * b := flatten matrix b
+     * * Out ij = a[i]*b[j]
+     * * Out row i = a[i]*b
+     * @param {Mat} b
+     * @returns {Mat} (N x M) x (N' x M') 
+     */
+    outerProd (b) {
+        const a_dim = this.dim();
+        const b_dim = b.dim();
+        // (N x M) (x) (N' x M')
+        let total_row = a_dim.n_row * a_dim.n_col;
+        let total_col = b_dim.n_col * b_dim.n_col;
+        const result = new Array(total_row);
+        for (let i = 0; i < total_row; i++) {
+            result[i] = new Array(total_col);
+            for (let j = 0; j < total_col; j++)
+                result[i][j] = this.getSingleIndexed(i) * b.getSingleIndexed(j);
+        }
+        
         return new Mat(result);
     }
 

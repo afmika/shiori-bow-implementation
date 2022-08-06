@@ -38,3 +38,8 @@ const bb = new Mat([1, 0],[0, 1]);;
 // aa.tensorProd(bb).print();
 aa.tensorProd(bb).print();
 bb.tensorProd(aa).print();
+
+console.log('\n# outer product');
+const u = new Mat([1, 0],[0, 1]);
+const v = new Mat([1, 0],[0, 2]);
+u.outerProd(v).print();

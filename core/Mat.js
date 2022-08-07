@@ -7,6 +7,7 @@ module.exports = class Mat {
             return;
         if (entries.length == 1) {
             // single arg ==> an array[][]
+            // the most optimised input
             this.entries = entries[0];
             return;
         }
@@ -175,6 +176,33 @@ module.exports = class Mat {
     }
 
     /**
+     * Computes a^T b without calling a.transpose()
+     * @param {Mat} a 
+     * @param {Mat} b 
+     * @returns 
+     */
+    static prodTransposeLeft (a, b) {
+        let {n_row, n_col} = a.dim();
+        // swap
+        [n_row, n_col] = [n_col, n_row];
+
+        if (n_col != b.dim().n_row)
+            throw Error ('first operand n_row != second operand n_col');
+        
+        let result = new Array(n_row);
+        for (let i = 0; i < n_row; i++) {
+            result[i] = new Array(b.dim().n_col);
+            for (let j = 0; j < b.dim().n_col; j++) {
+                let s_dot = 0;
+                for (let k = 0; k < n_col; k++) 
+                    s_dot += a.get(k, i) * b.get(k, j); // just swap a's indices
+                result[i][j] = s_dot;
+            }
+        }
+        return new Mat(result);
+    }
+
+    /**
      * @param {Mat} b 
      * @returns {Mat}
      */
@@ -297,6 +325,17 @@ module.exports = class Mat {
                     .map((row, i) => (i > 0 ? '  ' : '') + row.join(' '))
                     .join('\n')
             + ' ]';
+        console.log(str);
+        return str;
+    }
+
+    
+    /**
+     * shorthand for a more verbose console.log
+     */
+     printShape () {
+        const {n_row, n_col} = this.dim();
+        let str = `Mat ${n_row}x${n_col}\n`;
         console.log(str);
         return str;
     }

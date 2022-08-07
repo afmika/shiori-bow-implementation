@@ -31,5 +31,5 @@ function mean (w1, w2, top = 3) {
     return sw2v.meanWord (w1, w2, top);
 }
 
-sw2v.loadVectorsFromFile ('./trained/shiori-w2v/t8.shakespeare-vector.json');
+sw2v.loadVectorsFromFile ('./trained/shiori-w2v/mix-vec.json');
 console.log('Infos :: ', sw2v.infos());

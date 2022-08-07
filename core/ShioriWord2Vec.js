@@ -225,12 +225,18 @@ class ShioriWord2Vec {
 
         const datas = [];
         for (let cursor = 0; cursor < tokens.length; cursor++) {
-            const center_word = this.hotEncode(tokens[cursor]);
+            const center_word = {
+                word : tokens[cursor],
+                vec : this.hotEncode(tokens[cursor])
+            };
             const context_words = [];
             for (let j = -n_context; j <= n_context; j++) {
                 let index = cursor + j;
                 if (isValidIndex(index) && index != cursor)
-                    context_words.push(this.hotEncode(tokens[index]));
+                    context_words.push({
+                        word : tokens[index],
+                        vec : this.hotEncode(tokens[index])
+                    });
             }
             datas.push ({
                 token : tokens[cursor],
@@ -252,10 +258,11 @@ class ShioriWord2Vec {
         const n_input = this.vocabulary_obj.count;
         const n_output = this.vocabulary_obj.count;
 
-        const desired_output_dim = 2 * n_input; // we can put whatever we want
+        const desired_output_dim = 100; // we can put whatever we want
         this.model = new W2VSkipGramModel(desired_output_dim, n_output);
-
+        console.log('loading inputs');
         const dataset = this.generateTrainingDatas();
+        console.log('begin', dataset.length);
 
         // ex : w1 x w2 w3
         // input  := x  x  x (we repeat x as many times as there are context words)
@@ -263,30 +270,36 @@ class ShioriWord2Vec {
         for (let i = 0; i < epochs; i++) {
             let epoch_loss = 0;
             for (const {center, context_list} of dataset) {
-                const input = center;
+                const input = center.vec;
+                const w_idx = this.vocabulary_obj.word_to_idx[center.word];
                 const {
                         output_yj, 
                         output_h, 
                         output_u
-                    } = this.model.feedforward (input);
+                    } = this.model.optimisedFeedforward (w_idx);
+
+                // const {
+                //         output_yj, 
+                //         output_h, 
+                //         output_u
+                //     } = this.model.feedforward (input);
                 
                 // error vector
-                const temp_values = new Array(n_output).fill(output_yj);
                 const zeroes = new Array(n_output).fill(0);
-                const target = Mat.vec(... temp_values);
                 let El = Mat.vec(... zeroes);
 
                 let sum_ujc_star = 0;
-                for (let context_vec of context_list) {
-                    El = El.add(target.sub (context_vec));
+                for (let context of context_list) {
+                    const context_vec = context.vec;
+                    const ejc = context_vec.map((tc, i, j) => output_yj - tc);
+                    El = El.add(ejc);
                     // improvised indexOf
-                    const context_indexer = context_vec.transpose();
-                    sum_ujc_star += context_indexer.prod(output_u).get(0, 0);
+                    // const context_indexer = context_vec.transpose();
+                    // sum_ujc_star += context_indexer.prod(output_u).get(0, 0);
+                    const jc_star = this.vocabulary_obj.word_to_idx[context.word];
+                    const temp = output_u.get(jc_star, 0);
+                    sum_ujc_star += temp;
                 }
-                
-                // output layer raw outputs u do not participate in the backprop
-                // only the error matters
-                this.model.backprop (El, output_h, input);
 
                 // improvised indexOf
                 // Sum exp(uk)
@@ -298,20 +311,23 @@ class ShioriWord2Vec {
 
                 const current_loss = -sum_ujc_star + C * Math.log(sum_exp_uk);
                 epoch_loss += current_loss;
+
+                
+                // output layer raw outputs u do not participate in the backprop
+                // only the error matters
+                this.model.backprop (El, output_h, input);
             }
 
             this.model_loss = epoch_loss;
             Utils.safeRun(log_fun) (this.model_loss, i + 1, epochs);
         }
 
-        const words = {};
+        const words = {}; 
         for (let {token} of dataset) {
             const vec = this.hotEncode (token);
             const {output_h} = this.model.feedforward(vec);
             words[token] = new WordVector(output_h.transpose().entries[0]);
         }
-
-        console.log(words);
 
         this.is_trained_model = true;
         this.words = words;
@@ -410,11 +426,10 @@ class ShioriWord2Vec {
                 // about the angle between the two vectors
                 // the bigger the cosine diff, the more similar the vectors are !
                 // b > a
-                let cos_diff = Math.abs(b.cosine_dist) - Math.abs(a.cosine_dist);
-                if (isNaN (cos_diff)) // ex +Infinity-Infinity which is undefined
-                    cos_diff = 0;
+                let cos_diff = b.cosine_dist - a.cosine_dist;
                 // prioritize the cosine dist
-                return Math.abs(cos_diff) < EPSILON ? dist_diff : cos_diff;
+                let same_cos_dist = Math.abs(1 - cos_diff) < EPSILON;
+                return same_cos_dist ? dist_diff : cos_diff;
             });
 
         return top_list.filter((_, i) => i < top);

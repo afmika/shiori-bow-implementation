@@ -258,7 +258,7 @@ class ShioriWord2Vec {
         const n_input = this.vocabulary_obj.count;
         const n_output = this.vocabulary_obj.count;
 
-        const desired_output_dim = 100; // we can put whatever we want
+        const desired_output_dim = 10; // we can put whatever we want
         this.model = new W2VSkipGramModel(desired_output_dim, n_output);
         console.log('loading inputs');
         const dataset = this.generateTrainingDatas();
@@ -301,6 +301,10 @@ class ShioriWord2Vec {
                     sum_ujc_star += temp;
                 }
 
+                // output layer raw outputs u do not participate in the backprop
+                // only the error matters
+                this.model.backprop (El, output_h, input);
+                
                 // improvised indexOf
                 // Sum exp(uk)
                 const fold_exp_sum = (dsum, uk) => dsum + Math.exp(uk);
@@ -309,16 +313,12 @@ class ShioriWord2Vec {
 
                 // this.model.h_weights.print();
 
-                const current_loss = -sum_ujc_star + C * Math.log(sum_exp_uk);
+                const E = sum_ujc_star - C * Math.log(sum_exp_uk);
+                const current_loss = -E;
                 epoch_loss += current_loss;
-
-                
-                // output layer raw outputs u do not participate in the backprop
-                // only the error matters
-                this.model.backprop (El, output_h, input);
             }
 
-            this.model_loss = epoch_loss;
+            this.model_loss = epoch_loss / dataset.length;
             Utils.safeRun(log_fun) (this.model_loss, i + 1, epochs);
         }
 

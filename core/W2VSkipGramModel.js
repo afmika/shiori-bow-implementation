@@ -18,6 +18,7 @@ module.exports = class W2VSkipGramModel {
         // N x V
         // hidden layer -> output layer weights
         this.o_weights = Mat.rand (this.desired_vec_dim, this.vocab_dim, range);
+        this.o_weights.printShape();
     }
 
     /**
@@ -33,15 +34,13 @@ module.exports = class W2VSkipGramModel {
         const u = Mat.prodTransposeLeft(this.o_weights, h);
 
         // output (using softmax)
-        let ds = 0;
-        u.each ((uk, row, col) => {
-            ds += Math.exp(uk);
-        });
+
         // fetch j-th element of u such that input_vec[j] = 1
         // uj is a vector V x 1
         const uj = u.get(one_index, 0);
-        
-        const yj = Math.exp(uj) / ds; // basically P(wj|winput)
+
+        const denom = u.foldToScalar((acc, uk) => acc + Math.exp(uk));
+        const yj = Math.exp(uj) / denom; // basically P(wj|winput)
 
         return {
             output_yj : yj,
@@ -74,7 +73,6 @@ module.exports = class W2VSkipGramModel {
         const uj = Mat.prodTransposeLeft (u, input_vec);
         
         const yj = Math.exp(uj.get(0, 0)) / ds; // basically P(wj|winput)
-
         return {
             output_yj : yj,
             output_h : h,
@@ -85,23 +83,30 @@ module.exports = class W2VSkipGramModel {
     /**
      * Reference : word2vec Parameter Learning Explained by Xin Rong
      * @param {Mat} errors column vector between the output layer and a target
-     * @param {Mat} hidden column vector representing the output of the hidden layer
+     * @param {Mat} h_output column vector representing the output of the hidden layer
      * @param {Mat} input training example
      */
-    backprop (errors, hidden, input) {
+    backprop (errors, h_output, input) {
         const lr = this.learning_rate;
 
         // output -> hidden layer
-        const dw_output = hidden.outerProd (errors);
-        this.o_weights = this.o_weights.sub (dw_output.scale(lr));
-
+        const dw_output = h_output.outerProd (errors);
         // hidden layer -> input
-        // temp = W'^T e
+        // update first layer first before updating the output layer (input -> hidden)
         // const temp = this.h_weights.prod (errors.transpose());
-        const temp = Mat.prodTransposeLeft(this.h_weights, errors);
-
+        const temp = this.h_weights.transpose().prod (errors);
         const dw_hidden = input.outerProd (temp);
+
         this.h_weights = this.h_weights.sub (dw_hidden.scale(lr));
-        // this.h_weights.printShape();
+
+        // temp = W'^T e
+        this.o_weights = this.o_weights.sub (dw_output.scale(lr));
+    }
+
+    findNaN(mat, debug) {
+        mat.each((v, i, j) => {
+            if (isNaN(v))
+                throw Error ('Got NaN at ' +i+','+j +' : ' + debug)
+        })
     }
 }

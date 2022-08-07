@@ -12,7 +12,7 @@ module.exports = class W2VSkipGramModel {
 
         // V x N
         // input layer -> hidden layer weights
-        const range = (r, i, j) => i + j;
+        const range = (r, i, j) => 2 * r - 1;
         this.h_weights = Mat.rand (this.vocab_dim, this.desired_vec_dim, range);
 
         // N x V
@@ -64,8 +64,8 @@ module.exports = class W2VSkipGramModel {
         // const temp = this.h_weights.prod (errors.transpose());
         // const dw_hidden = input.outerProd (temp);
         // temp = W'^T e
-        const temp = this.h_weights.transpose().prod(errors);
-        const dw_hidden = input.outerProd(temp);
+        const temp = this.h_weights.transpose().prod (errors);
+        const dw_hidden = input.outerProd (temp);
         this.h_weights = this.h_weights.sub (dw_hidden.scale(lr));
     }
 }

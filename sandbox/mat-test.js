@@ -48,3 +48,8 @@ u.outerProd(v).print();
 // should give the same result 
 (new Mat([[1, 2]])).outerProd(new Mat([[2, 4, 8]])).print();
 (new Mat([[1, 2]]).transpose()).outerProd(new Mat([[2, 4, 8]])).print();
+
+// fold test
+let res = new Mat([[1, 2], [3, 4], [5, 6], [-1, -2], [-3, -4], [-5, -6]])
+    .foldToScalar((acc, x) => acc - x, 0);
+console.log( res);

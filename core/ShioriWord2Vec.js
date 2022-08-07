@@ -3,6 +3,8 @@ const ShioriNLP = require('./ShioriNLP');
 const Utils = require('./Utils');
 const EPSILON = 10e-6;
 const tf = require('@tensorflow/tfjs');
+const Mat = require('./Mat');
+const W2VSkipGramModel = require('./W2VSkipGramModel');
 
 class WordVector {
     /**
@@ -202,7 +204,7 @@ class ShioriWord2Vec {
 
     /**
      * @param {string} input_word 
-     * @returns {number[]} hot encoded vector
+     * @returns {Mat} hot encoded col vector
      */
     hotEncode (input_word) {
         const hot_vec = [];
@@ -210,7 +212,7 @@ class ShioriWord2Vec {
             let index = this.vocabulary_obj.word_to_idx[word];
             hot_vec[index] = input_word == word ? 1 : 0;
         }
-        return hot_vec;
+        return Mat.vec(...hot_vec);
     }
 
     /**
@@ -247,55 +249,69 @@ class ShioriWord2Vec {
      * @param {Function?} log_fun Function (message, n_current, total)
      */
     async trainOptimally (n_context = 1, epochs = 50, log_fun = null) {
-        const model = tf.sequential();
-        this.model = model;
-
         const n_input = this.vocabulary_obj.count;
         const n_output = this.vocabulary_obj.count;
 
-        // setup network
-        model.add(tf.layers.dense({units: 10, activation: 'softmax', inputShape: [n_input]}));
-        model.add(tf.layers.dense({units: n_output, activation: 'softmax'}));
-        model.compile({optimizer: 'sgd', loss: 'meanSquaredError'});
+        const desired_output_dim = 2 * n_input; // we can put whatever we want
+        this.model = new W2VSkipGramModel(desired_output_dim, n_output);
 
         const dataset = this.generateTrainingDatas();
+
         // ex : w1 x w2 w3
         // input  := x  x  x (we repeat x as many times as there are context words)
         // output := w1 w2 w3
-        let w_input = [], w_target = [];
-        for (const {center, context_list} of dataset) {
-            for (let context_vec of context_list) {
-                w_input.push(center);
-                w_target.push(context_vec);
-            }
-        }
-        // in the skip gram model, our y-hat is the context
-        const input = tf.tensor2d(w_input);
-        const label = tf.tensor2d(w_target);
-
         for (let i = 0; i < epochs; i++) {
-            let res_history = await model.fit (input, label);
-            this.model_loss = res_history.history.loss[0];
+            let epoch_loss = 0;
+            for (const {center, context_list} of dataset) {
+                const input = center;
+                const {
+                        output_yj, 
+                        output_h, 
+                        output_u
+                    } = this.model.feedforward (input);
+                
+                // error vector
+                const temp_values = new Array(n_output).fill(output_yj);
+                const zeroes = new Array(n_output).fill(0);
+                const target = Mat.vec(... temp_values);
+                let El = Mat.vec(... zeroes);
+
+                let sum_ujc_star = 0;
+                for (let context_vec of context_list) {
+                    El = El.add(target.sub (context_vec));
+                    // improvised indexOf
+                    const context_indexer = context_vec.transpose();
+                    sum_ujc_star += context_indexer.prod(output_u).get(0, 0);
+                }
+                
+                // output layer raw outputs u do not participate in the backprop
+                // only the error matters
+                this.model.backprop (El, output_h, input);
+
+                // improvised indexOf
+                // Sum exp(uk)
+                const fold_exp_sum = (dsum, uk) => dsum + Math.exp(uk);
+                const sum_exp_uk = output_u.foldToScalar(fold_exp_sum);
+                const C = context_list.length;
+
+                // this.model.h_weights.print();
+
+                const current_loss = -sum_ujc_star + C * Math.log(sum_exp_uk);
+                epoch_loss += current_loss;
+            }
+
+            this.model_loss = epoch_loss;
             Utils.safeRun(log_fun) (this.model_loss, i + 1, epochs);
         }
-        // console.log(model.getWeights())
-
-        input.dispose ();
-        label.dispose ();
-
-        console.log(this.model.layers[0].getWeights()[1].dataSync())
 
         const words = {};
         for (let {token} of dataset) {
             const vec = this.hotEncode (token);
-            const tensor_input = tf.tensor2d([vec]);
-            const tensor_output = this.model.predict(tensor_input);
-            const arr = Object.values(tensor_output.dataSync());
-            words[token] = new WordVector(arr);
-
-            tensor_input.dispose();
-            tensor_output.dispose();
+            const {output_h} = this.model.feedforward(vec);
+            words[token] = new WordVector(output_h.transpose().entries[0]);
         }
+
+        console.log(words);
 
         this.is_trained_model = true;
         this.words = words;

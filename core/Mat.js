@@ -274,6 +274,19 @@ module.exports = class Mat {
     }
 
     /**
+     * @param {Function} fn Function (accumulator, value)
+     * @param {number} start Ex: pick 0 for an additive reduction, 1 for a multiplicative reduction
+     * @returns {number} start Ex: pick 0 for an additive reduction, 1 for a multiplicative reduction
+     */
+    foldToScalar (fn, start = 0) {
+        let result = start || 0;
+        this.each((v, i, j) => {
+            result = fn(result, v)
+        });
+        return result;
+    }
+
+    /**
      * shorthand for a more verbose console.log
      */
     print () {

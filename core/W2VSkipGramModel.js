@@ -8,6 +8,7 @@ module.exports = class W2VSkipGramModel {
     constructor (desired_vec_dim, vocab_dim) {
         this.vocab_dim = vocab_dim; // V
         this.desired_vec_dim = desired_vec_dim; // N
+        this.learning_rate = .05;
 
         // V x N
         // input layer -> hidden layer weights
@@ -46,7 +47,25 @@ module.exports = class W2VSkipGramModel {
         };
     }
 
-    backprop () {
+    /**
+     * Reference : word2vec Parameter Learning Explained by Xin Rong
+     * @param {Mat} errors column vector between the output layer and a target
+     * @param {Mat} hidden column vector representing the output of the hidden layer
+     * @param {Mat} input training example
+     */
+    backprop (errors, hidden, input) {
+        const lr = this.learning_rate;
 
+        // output -> hidden layer
+        const dw_output = hidden.outerProd (errors);
+        this.o_weights = this.o_weights.sub (dw_output.scale(lr));
+
+        // hidden layer -> input
+        // const temp = this.h_weights.prod (errors.transpose());
+        // const dw_hidden = input.outerProd (temp);
+        // temp = W'^T e
+        const temp = this.h_weights.transpose().prod(errors);
+        const dw_hidden = input.outerProd(temp);
+        this.h_weights = this.h_weights.sub (dw_hidden.scale(lr));
     }
 }

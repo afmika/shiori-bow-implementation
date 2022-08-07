@@ -44,3 +44,7 @@ const u = new Mat([1,2], [3, 4]);
 const v = new Mat([1,2,3], [4,0,3]);
 
 u.outerProd(v).print();
+
+// should give the same result 
+(new Mat([[1, 2]])).outerProd(new Mat([[2, 4, 8]])).print();
+(new Mat([[1, 2]]).transpose()).outerProd(new Mat([[2, 4, 8]])).print();

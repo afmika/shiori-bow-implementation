@@ -317,7 +317,7 @@ module.exports = class Mat {
     /**
      * shorthand for a more verbose console.log
      */
-    print () {
+    print (disable) {
         const {n_row, n_col} = this.dim();
         let str = `Mat ${n_row}x${n_col}\n`
             + '[ '
@@ -325,7 +325,7 @@ module.exports = class Mat {
                     .map((row, i) => (i > 0 ? '  ' : '') + row.join(' '))
                     .join('\n')
             + ' ]';
-        console.log(str);
+        if (!disable) console.log(str);
         return str;
     }
 
@@ -333,10 +333,10 @@ module.exports = class Mat {
     /**
      * shorthand for a more verbose console.log
      */
-     printShape () {
+     printShape (disable) {
         const {n_row, n_col} = this.dim();
         let str = `Mat ${n_row}x${n_col}\n`;
-        console.log(str);
+        if (!disable) console.log(str);
         return str;
     }
 }

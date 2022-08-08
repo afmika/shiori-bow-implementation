@@ -37,19 +37,33 @@ module.exports = class W2VSkipGramModel {
 
         // fetch j-th element of u such that input_vec[j] = 1
         // uj is a vector V x 1
-        const uj = u.get(one_index, 0);
-
-        const denom = u.foldToScalar((acc, uk) => acc + Math.exp(uk));
-        const yj = Math.exp(uj) / denom; // basically P(wj|winput)
-
+        const y = this.softmax(u);
         return {
-            output_yj : yj,
+            output_yj : y.get(one_index, 0),
             output_h : h,
             output_u : u
         };
     }
 
 
+    /**
+     * Returns a vector such that the sum of all of its entry = 1
+     * @param {Mat} vec
+     * @returns {Mat} 
+     */
+    softmax (vec) {
+        let max = -Infinity;
+        vec.each((vi, i, j) => {
+            max = Math.max(vi, max);
+        });
+        let sum_vec_ex = 0;
+        const vec_ex = vec.map((vi, i, j) => {
+            const entry = Math.exp(vi - max);
+            sum_vec_ex += entry;
+            return entry;
+        });
+        return vec_ex.map(it => it / sum_vec_ex);
+    }
 
     /**
      * @param {Mat} input_mat vector
@@ -62,19 +76,13 @@ module.exports = class W2VSkipGramModel {
         // const u = this.o_weights.transpose().prod(h);
         const u = Mat.prodTransposeLeft(this.o_weights, h);
 
-        // output (using softmax)
-        let ds = 0;
-        u.each ((uk, row, col) => {
-            ds += Math.exp(uk);
-        });
         // fetch j-th element of u such that input_vec[j] = 1
         // uj is a vector V x 1
-        // const uj = u.transpose().prod(input_vec);
-        const uj = Mat.prodTransposeLeft (u, input_vec);
-        
-        const yj = Math.exp(uj.get(0, 0)) / ds; // basically P(wj|winput)
+        const y = this.softmax(u);
+
         return {
-            output_yj : yj,
+            // (L x 1) ^ T. (L x 1) => (1 x L) . (L x 1) => 1 x 1
+            output_yj : Mat.prodTransposeLeft(input_vec, y).get(0, 0),
             output_h : h,
             output_u : u
         };
@@ -96,6 +104,7 @@ module.exports = class W2VSkipGramModel {
         // const temp = this.h_weights.prod (errors.transpose());
         const temp = this.h_weights.transpose().prod (errors);
         const dw_hidden = input.outerProd (temp);
+        this.findNaN(dw_hidden, 'got dw_hidden first', errors)
 
         this.h_weights = this.h_weights.sub (dw_hidden.scale(lr));
 
@@ -103,10 +112,13 @@ module.exports = class W2VSkipGramModel {
         this.o_weights = this.o_weights.sub (dw_output.scale(lr));
     }
 
-    findNaN(mat, debug) {
+    findNaN(mat, debug, ...other_vec) {
         mat.each((v, i, j) => {
-            if (isNaN(v))
+            if (isNaN(v)) {
+                if (other_vec)
+                    other_vec.forEach(v => v.print());
                 throw Error ('Got NaN at ' +i+','+j +' : ' + debug)
+            }
         })
     }
 }

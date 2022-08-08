@@ -20,3 +20,8 @@ model.backprop (error, output_h, input);
 
 console.log('# after');
 model.o_weights.print();
+
+
+const test = model.softmax(Mat.vec( 0.53418708, -0.47742903, -0.7970129));
+test.print();
+console.log(test.foldToScalar((acc, x) => acc + x))

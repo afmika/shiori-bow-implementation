@@ -255,13 +255,12 @@ class ShioriWord2Vec {
      * @param {Function?} log_fun Function (message, n_current, total)
      */
     async trainOptimally (n_context = 1, epochs = 50, log_fun = null) {
-        const n_input = this.vocabulary_obj.count;
         const n_output = this.vocabulary_obj.count;
 
         const desired_output_dim = 10; // we can put whatever we want
         this.model = new W2VSkipGramModel(desired_output_dim, n_output);
         console.log('loading inputs');
-        const dataset = this.generateTrainingDatas();
+        const dataset = this.generateTrainingDatas(n_context);
         console.log('begin', dataset.length);
 
         // ex : w1 x w2 w3
@@ -269,57 +268,18 @@ class ShioriWord2Vec {
         // output := w1 w2 w3
         for (let i = 0; i < epochs; i++) {
             let epoch_loss = 0;
-            for (const {center, context_list} of dataset) {
-                const input = center.vec;
-                const w_idx = this.vocabulary_obj.word_to_idx[center.word];
-                const {
-                        output_yj, 
-                        output_h, 
-                        output_u
-                    } = this.model.optimisedFeedforward (w_idx);
 
-                // const {
-                //         output_yj, 
-                //         output_h, 
-                //         output_u
-                //     } = this.model.feedforward (input);
-                
-                // error vector
-                const zeroes = new Array(n_output).fill(0);
-                let El = Mat.vec(... zeroes);
-
-                let sum_ujc_star = 0;
-                for (let context of context_list) {
-                    const context_vec = context.vec;
-                    const ejc = context_vec.map((tc, i, j) => output_yj - tc);
-                    El = El.add(ejc);
-                    // improvised indexOf
-                    // const context_indexer = context_vec.transpose();
-                    // sum_ujc_star += context_indexer.prod(output_u).get(0, 0);
-                    const jc_star = this.vocabulary_obj.word_to_idx[context.word];
-                    const temp = output_u.get(jc_star, 0);
-                    sum_ujc_star += temp;
-                }
-
-                // output layer raw outputs u do not participate in the backprop
-                // only the error matters
-                this.model.backprop (El, output_h, input);
-                
-                // improvised indexOf
-                // Sum exp(uk)
-                const fold_exp_sum = (dsum, uk) => dsum + Math.exp(uk);
-                const sum_exp_uk = output_u.foldToScalar(fold_exp_sum);
-                const C = context_list.length;
-
-                // this.model.h_weights.print();
-
-                const E = sum_ujc_star - C * Math.log(sum_exp_uk);
-                const current_loss = -E;
-                epoch_loss += current_loss;
-            }
-
-            this.model_loss = epoch_loss / dataset.length;
-            Utils.safeRun(log_fun) (this.model_loss, i + 1, epochs);
+            for (const {center, context_list} of dataset)
+                epoch_loss += this.trainSingleExample (center, context_list, n_output);
+            
+            if (!this.model_loss) 
+                this.model_loss = 0;
+            
+            // diff orbiting around 0 ~ it has converges
+            let in_between_loss = this.model_loss - epoch_loss;
+            
+            this.model_loss = epoch_loss; // latest loss
+            Utils.safeRun(log_fun) (in_between_loss, i + 1, epochs);
         }
 
         const words = {}; 
@@ -331,6 +291,67 @@ class ShioriWord2Vec {
 
         this.is_trained_model = true;
         this.words = words;
+    }
+
+    /**
+     * @param {Object} center 
+     * @param {Object} context_list 
+     * @param {number} n_output 
+     * @returns 
+     */
+    trainSingleExample (center, context_list, n_output) {
+        const input = center.vec;
+        const w_idx = this.vocabulary_obj.word_to_idx[center.word];
+        const {
+                output_yj, 
+                output_h, 
+                output_u
+            } = this.model.optimisedFeedforward (w_idx);
+
+        // const {
+        //         output_yj, 
+        //         output_h, 
+        //         output_u
+        //     } = this.model.feedforward (input);
+        
+        // error vector
+        const zeroes = new Array(n_output).fill(0);
+        let El = Mat.vec(... zeroes);
+
+        let sum_ujc_star = 0;
+        for (let context of context_list) {
+            const context_vec = context.vec;
+            const ejc = context_vec.map((tc, i, j) => output_yj - tc);
+
+            this.model.findNaN(ejc, 'context_vec :: ' + context.word + ' yj = ' + output_yj)
+
+            El = El.add(ejc);
+            // improvised indexOf
+            // const context_indexer = context_vec.transpose();
+            // sum_ujc_star += context_indexer.prod(output_u).get(0, 0);
+            const jc_star = this.vocabulary_obj.word_to_idx[context.word];
+            const temp = output_u.get(jc_star, 0);
+            sum_ujc_star += temp;
+        }
+
+        this.model.backprop (El, output_h, input);
+
+        // output layer raw outputs u do not participate in the backprop
+        // only the error matters
+        // this.model.backprop (El, output_h, input);
+        
+        // improvised indexOf
+        // Sum exp(uk)
+        const fold_exp_sum = (dsum, uk) => dsum + Math.exp(uk);
+        const sum_exp_uk = output_u.foldToScalar(fold_exp_sum);
+        const C = context_list.length;
+
+        // this.model.h_weights.print();
+
+        const E = sum_ujc_star - C * Math.log(sum_exp_uk);
+        const current_loss = -E;
+        
+        return current_loss;
     }
 
     saveVectorsTo (filename) {

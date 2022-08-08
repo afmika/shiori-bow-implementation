@@ -294,6 +294,72 @@ class ShioriWord2Vec {
     }
 
     /**
+     * * Tries its best to reduce the number of vector columns while retaining the relevant ones
+     * * The number of columns will be equal to min(computed_col_length, max_vec_dimension)
+     * @param {number?} n_context number of 'context' word on the left/right of a given token
+     * @param {Function?} log_fun Function (message, n_current, total)
+     */
+     async trainTensorFlow (n_context = 1, epochs = 50, log_fun = null) {
+        const n_input = this.vocabulary_obj.count;
+        const n_output = this.vocabulary_obj.count;
+        const embedded_vec_dim = 50; // we can put whatever we want
+        const model = tf.sequential();
+        this.model = model;
+
+        const bias = false;
+        const hidden = tf.layers.dense({units: embedded_vec_dim, inputShape: [n_input], useBias : bias});
+        const output = tf.layers.dense({units: n_output, activation: 'softmax', useBias: false});
+        model.add(hidden);
+        model.add(output);
+
+        const sgdOpt = tf.train.sgd(0.1); // learning rate
+        model.compile({optimizer: sgdOpt, loss: 'categoricalCrossentropy'});
+
+        console.log('loading datas');
+        const dataset = this.generateTrainingDatas (n_context);
+        const __input = [];
+        const __output = [];
+        console.log('Dataset total ' + dataset.length);
+
+        for (let {center, context_list} of dataset) {
+            for (let context of context_list) {
+                __output.push(context.vec.transpose().entries[0]);
+                __input.push(center.vec.transpose().entries[0]);
+            }
+        }
+
+        const input = tf.tensor2d(__input);
+        const label = tf.tensor2d(__output);
+        // input.print()
+        console.log('Tensors setup !');
+
+        for (let epoch = 0; epoch < epochs; epoch++) {
+            const res_history = await this.model.fit(input, label);
+            this.model_loss = res_history.history.loss[0];
+            Utils.safeRun(log_fun) (this.model_loss, epoch + 1, epochs);
+        }
+        
+        input.dispose ();
+        label.dispose ();
+
+        const words = {};
+        console.log('retrieving trained vectors..');
+        console.log(dataset.length)
+        for (let {center, token, } of dataset) {
+            const tvec_word = tf.tensor2d(center.vec.transpose().entries);
+            const hidden_weights = this.model.layers[0].getWeights()[0];
+            const row_weight = tf.dot(tvec_word, hidden_weights);
+            const components = Array.from(row_weight.dataSync());
+            words[token] = new WordVector(components);
+            // this.model.layers[0].getWeights()[0].print();
+            // this.model.layers[1].getWeights()[0].print();
+        }
+
+        this.is_trained_model = true;
+        this.words = words;
+    }
+
+    /**
      * @param {Object} center 
      * @param {Object} context_list 
      * @param {number} n_output 

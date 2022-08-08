@@ -7,9 +7,9 @@ sw2v.loadTextFromFile (
 );
 
 sw2v.max_vec_dimension = 100;
-const window_size = 1;
+const window_size = 2;
 (async () => {
-    await sw2v.trainTensorFlow (window_size, 10, (loss, n_current, total) => {
+    await sw2v.trainTensorFlow (window_size, 100, (loss, n_current, total) => {
         const p = Math.floor (100 * n_current / total);
         console.log ('Training : '+ p + '% :: loss ', loss, n_current + '/' + total);
     });

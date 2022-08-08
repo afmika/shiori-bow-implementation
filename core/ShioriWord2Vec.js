@@ -308,11 +308,13 @@ class ShioriWord2Vec {
 
         const bias = false;
         const hidden = tf.layers.dense({units: embedded_vec_dim, inputShape: [n_input], useBias : bias});
-        const output = tf.layers.dense({units: n_output, activation: 'softmax', useBias: false});
+        const output = tf.layers.dense({units: n_output, activation: 'softmax', useBias: bias});
         model.add(hidden);
         model.add(output);
 
-        const sgdOpt = tf.train.sgd(0.1); // learning rate
+        const sgdOpt = tf.train.sgd(0.5); // learning rate
+        // We expect labels to be provided in a one_hot representation
+        // categoricalCrossentropy is a good loss candidate for probabilistic prediction
         model.compile({optimizer: sgdOpt, loss: 'categoricalCrossentropy'});
 
         console.log('loading datas');
@@ -327,6 +329,7 @@ class ShioriWord2Vec {
                 __input.push(center.vec.transpose().entries[0]);
             }
         }
+        console.log('Dataset total ' + dataset.length);
 
         const input = tf.tensor2d(__input);
         const label = tf.tensor2d(__output);

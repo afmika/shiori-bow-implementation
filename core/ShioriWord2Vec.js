@@ -302,7 +302,7 @@ class ShioriWord2Vec {
      async trainTensorFlow (n_context = 1, epochs = 50, log_fun = null) {
         const n_input = this.vocabulary_obj.count;
         const n_output = this.vocabulary_obj.count;
-        const embedded_vec_dim = 50; // we can put whatever we want
+        const embedded_vec_dim = this.max_vec_dimension || 50; // we can put whatever we want
         const model = tf.sequential();
         this.model = model;
 
@@ -312,11 +312,12 @@ class ShioriWord2Vec {
         model.add(hidden);
         model.add(output);
 
-        const sgdOpt = tf.train.sgd(0.5); // learning rate
+        const sgdOpt = tf.train.sgd(0.3); // learning rate
         // We expect labels to be provided in a one_hot representation
         // categoricalCrossentropy is a good loss candidate for probabilistic prediction
         model.compile({optimizer: sgdOpt, loss: 'categoricalCrossentropy'});
 
+        console.log('Embedding dimension ' + embedded_vec_dim);
         console.log('loading datas');
         const dataset = this.generateTrainingDatas (n_context);
         const __input = [];
@@ -329,12 +330,12 @@ class ShioriWord2Vec {
                 __input.push(center.vec.transpose().entries[0]);
             }
         }
-        console.log('Dataset total ' + dataset.length);
+        console.log('Dataset after pairing ' + __output.length);
 
         const input = tf.tensor2d(__input);
         const label = tf.tensor2d(__output);
         // input.print()
-        console.log('Tensors setup !');
+        console.log('Tensor setup done.');
 
         for (let epoch = 0; epoch < epochs; epoch++) {
             const res_history = await this.model.fit(input, label);
@@ -346,8 +347,7 @@ class ShioriWord2Vec {
         label.dispose ();
 
         const words = {};
-        console.log('retrieving trained vectors..');
-        console.log(dataset.length)
+        console.log('Retrieving trained vectors..');
         for (let {center, token, } of dataset) {
             const tvec_word = tf.tensor2d(center.vec.transpose().entries);
             const hidden_weights = this.model.layers[0].getWeights()[0];

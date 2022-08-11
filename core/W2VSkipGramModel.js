@@ -22,31 +22,6 @@ module.exports = class W2VSkipGramModel {
     }
 
     /**
-     * @param {number} one_index index
-     */
-     optimisedFeedforward (one_index) {
-        // h = W^T x
-        // const h = this.h_weights.transpose().prod(input_vec);
-        
-        // v = W^T x = row weight
-        const h = Mat.vec(... this.h_weights.entries[one_index]);
-        // u = W'^T h
-        const u = Mat.prodTransposeLeft(this.o_weights, h);
-
-        // output (using softmax)
-
-        // fetch j-th element of u such that input_vec[j] = 1
-        // uj is a vector V x 1
-        const y = this.softmax(u);
-        return {
-            output_y : y,
-            output_h : h,
-            output_u : u
-        };
-    }
-
-
-    /**
      * Returns a vector such that the sum of all of its entry = 1
      * @param {Mat} vec
      * @returns {Mat} 

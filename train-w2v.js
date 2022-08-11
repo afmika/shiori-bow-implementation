@@ -8,7 +8,7 @@ sw2v.loadTextFromFile (
 
 sw2v.max_vec_dimension = 100;
 const window_size = 2;
-const n_epochs = 100;
+const n_epochs = 250;
 (async () => {
     await sw2v.trainOptimally (window_size, n_epochs, (loss, delta_loss, n_current, total) => {
         const p = Math.floor (100 * n_current / total);

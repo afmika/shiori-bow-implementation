@@ -384,13 +384,6 @@ class ShioriWord2Vec {
      */
     trainSingleExample (center, context_list, n_output) {
         const input = center.vec;
-        const w_idx = this.vocabulary_obj.word_to_idx[center.word];
-        // const {
-        //         output_y, 
-        //         output_h, 
-        //         output_u
-        //     } = this.model.optimisedFeedforward (w_idx);
-
         const {
                 output_y, 
                 output_h, 

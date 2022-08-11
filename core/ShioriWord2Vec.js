@@ -263,12 +263,15 @@ class ShioriWord2Vec {
         const dataset = this.generateTrainingDatas(n_context);
         console.log('Total words loaded :', dataset.length);
 
+        const unique_words_vec = {};
         for (let i = 0; i < epochs; i++) {
             let epoch_loss = 0;
 
-            for (const {center, context_list} of dataset)
+            for (const {center, context_list} of dataset) {
                 epoch_loss += this.trainSingleExample (center, context_list, n_output);
-            
+                if (!unique_words_vec[center.word])
+                    unique_words_vec[center.word] = center.vec;
+            }
             // logging
             if (this.model_loss == undefined || this.model_loss == null) 
                 this.model_loss = 0;
@@ -279,12 +282,14 @@ class ShioriWord2Vec {
         }
 
         console.log('Saving vectors...');
+        console.log('Unique words count ', Object.keys(unique_words_vec).length);
         const words = {}; 
         const h_weights_transposed = this.model.h_weights.transpose();
-        for (let {token} of dataset) {
-            const w_idx = this.vocabulary_obj.word_to_idx[token];
+        for (let token in unique_words_vec) {
+            const vec = unique_words_vec[token];
             // only the hidden layer is relevant (input layer -> hidden layer (output_h) -> output layer (output_u))
-            words[token] = new WordVector(h_weights_transposed.entries[w_idx]);
+            const row = h_weights_transposed.prod(vec);
+            words[token] = new WordVector(row.transpose().entries[0]);
         }
 
         this.is_trained_model = true;
@@ -323,13 +328,17 @@ class ShioriWord2Vec {
         const __output = [];
         console.log('Dataset total ' + dataset.length);
 
+        const unique_words_vec = {};
         for (let {center, context_list} of dataset) {
             for (let context of context_list) {
                 __output.push(context.vec.transpose().entries[0]);
                 __input.push(center.vec.transpose().entries[0]);
             }
+            if (!unique_words_vec[center.word])
+                unique_words_vec[center.word] = center.vec;
         }
         console.log('Dataset after pairing ' + __output.length);
+        // console.log('Unique words count ' + Object.keys(unique_words_vec).length);
 
         const input = tf.tensor2d(__input);
         const label = tf.tensor2d(__output);
@@ -352,8 +361,9 @@ class ShioriWord2Vec {
 
         const words = {};
         console.log('Retrieving trained vectors..');
-        for (let {center, token, } of dataset) {
-            const tvec_word = tf.tensor2d(center.vec.transpose().entries);
+        for (let token in unique_words_vec) {
+            const vec = unique_words_vec[token];
+            const tvec_word = tf.tensor2d(vec.transpose().entries);
             const hidden_weights = this.model.layers[0].getWeights()[0];
             const row_weight = tf.dot(tvec_word, hidden_weights);
             const components = Array.from(row_weight.dataSync());

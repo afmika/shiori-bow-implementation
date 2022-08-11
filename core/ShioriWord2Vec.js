@@ -257,8 +257,8 @@ class ShioriWord2Vec {
     async trainOptimally (n_context = 1, epochs = 50, log_fun = null) {
         const n_output = this.vocabulary_obj.count;
 
-        const desired_output_dim = 10; // we can put whatever we want
-        this.model = new W2VSkipGramModel(desired_output_dim, n_output);
+        const embedded_vec_dim = this.max_vec_dimension || 50; // we can put whatever we want
+        this.model = new W2VSkipGramModel(embedded_vec_dim, n_output);
         console.log('Loading inputs ...');
         const dataset = this.generateTrainingDatas(n_context);
         console.log('Total words loaded :', dataset.length);

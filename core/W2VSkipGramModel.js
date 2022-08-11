@@ -39,7 +39,7 @@ module.exports = class W2VSkipGramModel {
         // uj is a vector V x 1
         const y = this.softmax(u);
         return {
-            output_yj : y.get(one_index, 0),
+            output_y : y,
             output_h : h,
             output_u : u
         };
@@ -82,7 +82,7 @@ module.exports = class W2VSkipGramModel {
 
         return {
             // (L x 1) ^ T. (L x 1) => (1 x L) . (L x 1) => 1 x 1
-            output_yj : Mat.prodTransposeLeft(input_vec, y).get(0, 0),
+            output_y : y,
             output_h : h,
             output_u : u
         };
@@ -104,7 +104,7 @@ module.exports = class W2VSkipGramModel {
         // const temp = this.h_weights.prod (errors.transpose());
         const temp = this.h_weights.transpose().prod (errors);
         const dw_hidden = input.outerProd (temp);
-        this.findNaN(dw_hidden, 'got dw_hidden first', errors)
+        this.findNaN(dw_hidden, 'got dw_hidden first', errors);
 
         this.h_weights = this.h_weights.sub (dw_hidden.scale(lr));
 

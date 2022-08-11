@@ -13,3 +13,10 @@ const target = a.transpose().prod(b);
 const res = Mat.prodTransposeLeft(a, b);
 target.print();
 res.print();
+
+
+const x = Mat.covec(0,0,1,0,0);
+const dw = Mat.vec(1,2,3);
+const rr = x.outerProd(dw);
+rr.printShape();
+rr.print()

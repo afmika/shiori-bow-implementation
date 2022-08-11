@@ -252,41 +252,39 @@ class ShioriWord2Vec {
      * * Tries its best to reduce the number of vector columns while retaining the relevant ones
      * * The number of columns will be equal to min(computed_col_length, max_vec_dimension)
      * @param {number?} n_context number of 'context' word on the left/right of a given token
-     * @param {Function?} log_fun Function (message, n_current, total)
+     * @param {Function?} log_fun Function (loss, delta_loss, current, total)
      */
     async trainOptimally (n_context = 1, epochs = 50, log_fun = null) {
         const n_output = this.vocabulary_obj.count;
 
         const desired_output_dim = 10; // we can put whatever we want
         this.model = new W2VSkipGramModel(desired_output_dim, n_output);
-        console.log('loading inputs');
+        console.log('Loading inputs ...');
         const dataset = this.generateTrainingDatas(n_context);
-        console.log('begin', dataset.length);
+        console.log('Total words loaded :', dataset.length);
 
-        // ex : w1 x w2 w3
-        // input  := x  x  x (we repeat x as many times as there are context words)
-        // output := w1 w2 w3
         for (let i = 0; i < epochs; i++) {
             let epoch_loss = 0;
 
             for (const {center, context_list} of dataset)
                 epoch_loss += this.trainSingleExample (center, context_list, n_output);
             
-            if (!this.model_loss) 
+            // logging
+            if (this.model_loss == undefined || this.model_loss == null) 
                 this.model_loss = 0;
-            
-            // diff orbiting around 0 ~ it has converges
+            // a delta_loss orbiting around 0 ~ it has converged
             let in_between_loss = this.model_loss - epoch_loss;
-            
             this.model_loss = epoch_loss; // latest loss
-            Utils.safeRun(log_fun) (in_between_loss, i + 1, epochs);
+            Utils.safeRun(log_fun) (this.model_loss, in_between_loss, i + 1, epochs);
         }
 
+        console.log('Saving vectors...');
         const words = {}; 
+        const h_weights_transposed = this.model.h_weights.transpose();
         for (let {token} of dataset) {
-            const vec = this.hotEncode (token);
-            const {output_h} = this.model.feedforward(vec);
-            words[token] = new WordVector(output_h.transpose().entries[0]);
+            const w_idx = this.vocabulary_obj.word_to_idx[token];
+            // only the hidden layer is relevant (input layer -> hidden layer (output_h) -> output layer (output_u))
+            words[token] = new WordVector(h_weights_transposed.entries[w_idx]);
         }
 
         this.is_trained_model = true;
@@ -316,6 +314,7 @@ class ShioriWord2Vec {
         // We expect labels to be provided in a one_hot representation
         // categoricalCrossentropy is a good loss candidate for probabilistic prediction
         model.compile({optimizer: sgdOpt, loss: 'categoricalCrossentropy'});
+        // model.compile({optimizer: sgdOpt, loss: 'binaryCrossentropy'});
 
         console.log('Embedding dimension ' + embedded_vec_dim);
         console.log('loading datas');
@@ -335,12 +334,17 @@ class ShioriWord2Vec {
         const input = tf.tensor2d(__input);
         const label = tf.tensor2d(__output);
         // input.print()
-        console.log('Tensor setup done.');
+        console.log('Tensor setup done !');
 
+        let delta_loss = null;
         for (let epoch = 0; epoch < epochs; epoch++) {
             const res_history = await this.model.fit(input, label);
             this.model_loss = res_history.history.loss[0];
-            Utils.safeRun(log_fun) (this.model_loss, epoch + 1, epochs);
+            if (delta_loss == null)
+                delta_loss = this.model_loss;
+            else
+                delta_loss = delta_loss - this.model_loss;
+            Utils.safeRun(log_fun) (this.model_loss, delta_loss, epoch + 1, epochs);
         }
         
         input.dispose ();
@@ -371,35 +375,34 @@ class ShioriWord2Vec {
     trainSingleExample (center, context_list, n_output) {
         const input = center.vec;
         const w_idx = this.vocabulary_obj.word_to_idx[center.word];
-        const {
-                output_yj, 
-                output_h, 
-                output_u
-            } = this.model.optimisedFeedforward (w_idx);
-
         // const {
-        //         output_yj, 
+        //         output_y, 
         //         output_h, 
         //         output_u
-        //     } = this.model.feedforward (input);
-        
+        //     } = this.model.optimisedFeedforward (w_idx);
+
+        const {
+                output_y, 
+                output_h, 
+                output_u
+            } = this.model.feedforward (input);
+
         // error vector
         const zeroes = new Array(n_output).fill(0);
         let El = Mat.vec(... zeroes);
 
         let sum_ujc_star = 0;
         for (let context of context_list) {
+            const c_index = this.vocabulary_obj.word_to_idx[context.word];
             const context_vec = context.vec;
-            const ejc = context_vec.map((tc, i, j) => output_yj - tc);
-
-            this.model.findNaN(ejc, 'context_vec :: ' + context.word + ' yj = ' + output_yj)
+            // Ejc = y^ - y where y = y for context word c
+            const ejc = output_y.sub(context_vec);
 
             El = El.add(ejc);
             // improvised indexOf
             // const context_indexer = context_vec.transpose();
             // sum_ujc_star += context_indexer.prod(output_u).get(0, 0);
-            const jc_star = this.vocabulary_obj.word_to_idx[context.word];
-            const temp = output_u.get(jc_star, 0);
+            const temp = output_u.get(c_index, 0);
             sum_ujc_star += temp;
         }
 
@@ -409,7 +412,6 @@ class ShioriWord2Vec {
         // only the error matters
         // this.model.backprop (El, output_h, input);
         
-        // improvised indexOf
         // Sum exp(uk)
         const fold_exp_sum = (dsum, uk) => dsum + Math.exp(uk);
         const sum_exp_uk = output_u.foldToScalar(fold_exp_sum);

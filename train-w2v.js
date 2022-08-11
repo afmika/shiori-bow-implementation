@@ -6,12 +6,13 @@ sw2v.loadTextFromFile (
     './datas/exclude.txt'
 );
 
-sw2v.max_vec_dimension = 100;
+sw2v.max_vec_dimension = 20;
 const window_size = 2;
+const n_epochs = 15;
 (async () => {
-    await sw2v.trainTensorFlow (window_size, 100, (loss, n_current, total) => {
+    await sw2v.trainOptimally (window_size, n_epochs, (loss, delta_loss, n_current, total) => {
         const p = Math.floor (100 * n_current / total);
-        console.log ('Training : '+ p + '% :: loss ', loss, n_current + '/' + total);
+        console.log ('Training : '+ p + '% :: loss ', loss, ':: delta_loss ', delta_loss, n_current + '/' + total);
     });
 
     sw2v.saveVectorsTo ('./trained/shiori-w2v/konosuba.en-vec.json');

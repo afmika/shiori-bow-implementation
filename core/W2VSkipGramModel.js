@@ -8,7 +8,7 @@ module.exports = class W2VSkipGramModel {
     constructor (desired_vec_dim, vocab_dim) {
         this.vocab_dim = vocab_dim; // V
         this.desired_vec_dim = desired_vec_dim; // N
-        this.learning_rate = .01;
+        this.learning_rate = 0.01;
 
         // V x N
         // input layer -> hidden layer weights

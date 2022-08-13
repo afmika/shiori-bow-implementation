@@ -153,6 +153,7 @@ class ShioriWord2Vec {
     constructor (max_vec_dimension = Infinity) {
         this.max_vec_dimension = max_vec_dimension;
         this.is_trained_model = false;
+        this.learning_rate = 0.1;
         this.tokens = [];
         this.vocabulary_obj = {
             word_to_idx : {},
@@ -259,9 +260,11 @@ class ShioriWord2Vec {
 
         const embedded_vec_dim = this.max_vec_dimension || 50; // we can put whatever we want
         this.model = new W2VSkipGramModel(embedded_vec_dim, n_output);
+        this.model.learning_rate = this.learning_rate;
         console.log('Loading inputs ...');
         const dataset = this.generateTrainingDatas(n_context);
         console.log('Total words loaded :', dataset.length);
+        console.log('Learning rate :', this.model.learning_rate);
 
         const unique_words_vec = {};
         for (let i = 0; i < epochs; i++) {
@@ -315,7 +318,7 @@ class ShioriWord2Vec {
         model.add(hidden);
         model.add(output);
 
-        const sgdOpt = tf.train.sgd(0.3); // learning rate
+        const sgdOpt = tf.train.sgd(this.learning_rate); // learning rate
         // We expect labels to be provided in a one_hot representation
         // categoricalCrossentropy is a good loss candidate for probabilistic prediction
         model.compile({optimizer: sgdOpt, loss: 'categoricalCrossentropy'});
@@ -474,6 +477,15 @@ class ShioriWord2Vec {
         return this.words[word];
     }
 
+
+    /**
+     * @param {Mat} m
+     * @param {Mat} vec
+     */
+    static parallelDot (m, vec) {
+
+    }
+
     /**
      * @param {string} word 
      * @param {number?} top 
@@ -539,7 +551,7 @@ class ShioriWord2Vec {
             total_words : Object.keys(this.words).length,
             vec_dim : vec_dim
         };
-    }                                                                                                                                                                                                                                                                                                                        
+    }                                                                                                                                                                                                                                                                                                                   
 }
 
 

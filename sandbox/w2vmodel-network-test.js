@@ -13,15 +13,18 @@ const target = Mat.vec(1, 0, 0);
 const {output_yj, output_h, output_u} = model.feedforward(input);
 const error = output_u.sub(input);
 
-console.log('# before');
-model.o_weights.print();
+// console.log('# before');
+// model.o_weights.print();
 
-model.backprop (error, output_h, input);
+// model.backprop (error, output_h, input);
 
-console.log('# after');
-model.o_weights.print();
+// console.log('# after');
+// model.o_weights.print();
 
 
-// const test = model.softmax(Mat.vec( 0.53418708, -0.47742903, -0.7970129));
-// test.print();
-// console.log(test.foldToScalar((acc, x) => acc + x))
+const test = model.softmax(Mat.vec( 0.53418708, -0.47742903, -0.7970129));
+const test2 = model.fastSoftmax(Mat.vec( 0.53418708, -0.47742903, -0.7970129));
+test.print();
+test2.print();
+console.log(test.foldToScalar((acc, x) => acc + x))
+console.log(test2.foldToScalar((acc, x) => acc + x))

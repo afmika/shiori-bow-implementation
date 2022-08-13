@@ -412,8 +412,9 @@ class ShioriWord2Vec {
             sum_ujc_star += temp;
         }
 
-        this.model.backprop (El, output_h, input);
-
+        // this.model.backprop (El, output_h, input);
+        this.model.fastBackprop (El, output_h, input);
+        
         // output layer raw outputs u do not participate in the backprop
         // only the error matters
         // this.model.backprop (El, output_h, input);

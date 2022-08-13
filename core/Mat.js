@@ -304,7 +304,7 @@ module.exports = class Mat {
     /**
      * @param {Function} fn Function (accumulator, value)
      * @param {number} start Ex: pick 0 for an additive reduction, 1 for a multiplicative reduction
-     * @returns {number} start Ex: pick 0 for an additive reduction, 1 for a multiplicative reduction
+     * @returns {number}
      */
     foldToScalar (fn, start = 0) {
         let result = start || 0;
@@ -315,7 +315,7 @@ module.exports = class Mat {
     }
 
     /**
-     * shorthand for a more verbose console.log
+     * Shorthand for a more verbose console.log
      */
     print (disable) {
         const {n_row, n_col} = this.dim();
@@ -331,7 +331,7 @@ module.exports = class Mat {
 
     
     /**
-     * shorthand for a more verbose console.log
+     * Print the shape of the current  matrix
      */
      printShape (disable) {
         const {n_row, n_col} = this.dim();

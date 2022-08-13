@@ -41,6 +41,16 @@ module.exports = class W2VSkipGramModel {
     }
 
     /**
+     * Returns a vector such that the sum of all of its entry = 1
+     * @param {Mat} vec 
+     * @returns 
+     */
+    fastSoftmax (vec) {
+        const total = vec.foldToScalar ((acc, x) => acc + Math.exp(x));
+        return vec.map(it => Math.exp(it) / total);
+    }
+
+    /**
      * @param {Mat} input_mat vector
      */
     feedforward (input_vec) {
@@ -53,8 +63,8 @@ module.exports = class W2VSkipGramModel {
 
         // fetch j-th element of u such that input_vec[j] = 1
         // uj is a vector V x 1
-        const y = this.softmax(u);
-
+        // const y = this.softmax(u);
+        const y = this.fastSoftmax(u);
         return {
             // (L x 1) ^ T. (L x 1) => (1 x L) . (L x 1) => 1 x 1
             output_y : y,
@@ -77,7 +87,8 @@ module.exports = class W2VSkipGramModel {
         // hidden layer -> input
         // update first layer first before updating the output layer (input -> hidden)
         // const temp = this.h_weights.prod (errors.transpose());
-        const temp = this.h_weights.transpose().prod (errors);
+        
+        const temp = Mat.prodTransposeLeft (this.h_weights, errors);
         const dw_hidden = input.outerProd (temp);
         this.findNaN(dw_hidden, 'got dw_hidden first', errors);
 
@@ -85,6 +96,34 @@ module.exports = class W2VSkipGramModel {
 
         // temp = W'^T e
         this.o_weights = this.o_weights.sub (dw_output.scale(lr));
+    }
+
+    /**
+     * Reference : word2vec Parameter Learning Explained by Xin Rong
+     * @param {Mat} errors column vector between the output layer and a target
+     * @param {Mat} h_output column vector representing the output of the hidden layer
+     * @param {Mat} input training example
+     */
+    fastBackprop (errors, h_output, input) {
+        const lr = this.learning_rate;
+
+        // output -> hidden layer
+        const dw_output = h_output.outerProd (errors);
+        // hidden layer -> input
+        // update first layer first before updating the output layer (input -> hidden)
+        // const temp = this.h_weights.prod (errors.transpose());
+        // these two computations should be parallelizable
+        const temp = Mat.prodTransposeLeft (this.h_weights, errors);
+        const dw_hidden = input.outerProd (temp);
+
+        // these two computations should be parallelizable
+        this.h_weights = this.h_weights.map((wij, i, j) => {
+            return wij - lr * dw_hidden.get(i, j);
+        });
+
+        this.o_weights = this.o_weights.map((wij, i, j) => {
+            return wij - lr * dw_output.get(i, j);
+        });
     }
 
     findNaN(mat, debug, ...other_vec) {
